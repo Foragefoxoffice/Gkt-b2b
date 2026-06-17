@@ -1,0 +1,161 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+    font-family: 'Outfit', sans-serif !important;
+  }
+
+  .dark body {
+    @apply bg-dark-bg text-dark-text;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 focus:ring-4 focus:ring-primary-100 transition-colors duration-200 font-medium;
+  }
+
+  .dark .btn-primary {
+    @apply focus:ring-primary-900;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+  }
+
+  .dark .card {
+    @apply bg-dark-card border-dark-border;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-slate-300 px-2 py-2 bg-white text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all;
+  }
+
+  .dark .input-field {
+    @apply bg-dark-bg border-dark-border text-dark-text focus:ring-primary-900;
+  }
+}
+
+/* Page transitions */
+.page-enter {
+  opacity: 0;
+}
+
+.page-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
+.page-exit {
+  opacity: 1;
+}
+
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+.modal_main {
+  margin: 0 !important;
+}
+
+/* MinzCode Add To Cart Animation */
+.cart-button {
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s;
+}
+
+.cart-button .add-to-cart,
+.cart-button .added {
+  display: block;
+  transition: all 0.3s ease-in-out;
+}
+
+.cart-button .add-to-cart {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.cart-button .added {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  opacity: 0;
+}
+
+.cart-button.clicked .add-to-cart {
+  transform: translateY(-20px);
+  opacity: 0;
+}
+
+.cart-button.clicked .added {
+  transform: translate(-50%, -50%);
+  opacity: 1;
+  transition-delay: 1.5s;
+}
+
+.cart-button.already-added {
+  background-color: #22c55e !important;
+}
+
+.cart-button.already-added .add-to-cart {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: none;
+}
+
+.cart-button.already-added .added {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition: none;
+}
+
+.cart-button.already-added .cart-icon,
+.cart-button.already-added .box-icon {
+  display: none;
+}
+
+.cart-button .cart-icon {
+  position: absolute;
+  top: 50%;
+  left: -10%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  opacity: 0;
+}
+
+.cart-button.clicked .cart-icon {
+  opacity: 1;
+  animation: cart-animation 1.5s ease-in-out forwards;
+}
+
+.cart-button .box-icon {
+  position: absolute;
+  top: -20%;
+  left: 52%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.cart-button.clicked .box-icon {
+  animation: box-animation 1.5s ease-in-out forwards;
+}
+
+@keyframes cart-animation {
+  0% { left: -10%; }
+  40%, 60% { left: 50%; }
+  100% { left: 110%; }
+}
+
+@keyframes box-animation {
+  0%, 40% { top: -20%; }
+  60% { top: 40%; left: 52%; }
+  100% { top: 40%; left: 112%; }
+}

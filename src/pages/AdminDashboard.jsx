@@ -1,0 +1,254 @@
+import React, { useEffect, useState } from 'react';
+import {
+  TrendingUp, TrendingDown, DollarSign, Package, MoreHorizontal, Calendar, Download
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area
+} from 'recharts';
+import { getAdminDashboardApi } from '../Action/api';
+
+const Sparkline = ({ color, data }) => (
+  <div className="h-10 w-24">
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id={`color${color}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fillOpacity={1} fill={`url(#color${color})`} />
+      </AreaChart>
+    </ResponsiveContainer>
+  </div>
+);
+
+const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
+  <div className="card p-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+    <div className="flex justify-between items-start mb-2">
+      <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</h3>
+      <div className="p-1.5 bg-slate-50 dark:bg-dark-border rounded text-slate-400">
+        <MoreHorizontal size={14} />
+      </div>
+    </div>
+    <div className="flex items-end justify-between">
+      <div>
+        <p className="text-3xl font-semibold text-slate-800 dark:text-white">{value}</p>
+        <div className="flex items-center mt-2 text-xs font-medium">
+          {isPositive ? (
+            <span className="text-emerald-500 flex items-center bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">
+              <TrendingUp size={12} className="mr-1" /> {trend}
+            </span>
+          ) : (
+            <span className="text-rose-500 flex items-center bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded">
+              <TrendingDown size={12} className="mr-1" /> {trend}
+            </span>
+          )}
+          <span className="text-slate-400 ml-2">vs last month</span>
+        </div>
+      </div>
+      <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+        <Sparkline color={color} data={sparklineData} />
+      </div>
+    </div>
+  </div>
+);
+
+const AdminDashboard = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await getAdminDashboardApi();
+        if (res.data.success) {
+          setData(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dashboard', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 bg-slate-200 dark:bg-dark-border rounded w-1/4"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-200 dark:bg-dark-border rounded-xl"></div>)}
+        </div>
+      </div>
+    );
+  }
+
+  const { kpi, charts } = data;
+
+  // Dummy sparkline data for aesthetics
+  const sparkline1 = [{ value: 40 }, { value: 30 }, { value: 45 }, { value: 50 }, { value: 35 }, { value: 60 }, { value: 70 }];
+  const sparkline2 = [{ value: 20 }, { value: 30 }, { value: 25 }, { value: 40 }, { value: 60 }, { value: 50 }, { value: 80 }];
+  const sparkline3 = [{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }];
+  const sparkline4 = [{ value: 30 }, { value: 50 }, { value: 40 }, { value: 60 }, { value: 55 }, { value: 70 }, { value: 90 }];
+
+  const PIE_COLORS = ['#8b5cf6', '#c4b5fd', '#fcd34d', '#34d399', '#f87171'];
+
+  return (
+    <div className="space-y-6">
+      {/* Header aligned with the image aesthetic */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
+            Dashboard Overview <span className="ml-2 text-xl">👋</span>
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here are the latest insights across your active operations.</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button className="flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-all dark:bg-dark-card dark:text-slate-300 dark:border-dark-border dark:hover:bg-dark-border">
+            <Calendar size={16} className="mr-2" /> Schedule Report
+          </button>
+          <button className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-sm shadow-primary-500/30 transition-all">
+            <Download size={16} className="mr-2" /> Export Report
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard
+          title="Total Orders"
+          value={kpi.totalOrders}
+          trend="+12.5%"
+          isPositive={true}
+          sparklineData={sparkline1}
+          color="#10b981"
+        />
+        <KPICard
+          title="Total Sales Value"
+          value={`₹${kpi.totalSales >= 1000000 ? (kpi.totalSales / 1000000).toFixed(1) + 'M' : kpi.totalSales.toLocaleString()}`}
+          trend="+8.2%"
+          isPositive={true}
+          sparklineData={sparkline2}
+          color="#8b5cf6"
+        />
+        <KPICard
+          title="Pending Orders"
+          value={kpi.pendingOrders}
+          trend="-4.2%"
+          isPositive={false}
+          sparklineData={sparkline3}
+          color="#f43f5e"
+        />
+        <KPICard
+          title="Total Buyers"
+          value={kpi.totalBuyers}
+          trend="+3.1%"
+          isPositive={true}
+          sparklineData={sparkline4}
+          color="#0ea5e9"
+        />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="card lg:col-span-2 relative">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center">
+              <TrendingUp size={16} className="mr-2 text-primary-500" /> Order Status Distribution
+            </h2>
+            <div className="flex items-center space-x-2 text-xs font-medium">
+              <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-primary-200 mr-2"></div> Draft</span>
+              <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-primary-500 mr-2"></div> Finalized</span>
+            </div>
+          </div>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={charts.orderStatusDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.4} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-dark-border" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <Tooltip
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Bar dataKey="value" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Side Panel matching the "Gross Profit by Project" aesthetic */}
+        <div className="card flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center">
+              <DollarSign size={16} className="mr-2 text-primary-500" /> Sales Overview
+            </h2>
+            <select className="bg-slate-50 dark:bg-dark-bg border-none text-xs font-medium text-slate-600 dark:text-slate-300 rounded outline-none py-1 px-2 cursor-pointer">
+              <option>This Month</option>
+              <option>Last Month</option>
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-3xl font-bold text-slate-800 dark:text-white">₹{kpi.monthlySales.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-1">Total sales (this month)</p>
+          </div>
+
+          <div className="flex-1">
+            <p className="text-xs font-bold text-slate-800 dark:text-white mb-3">Status Breakdown</p>
+            <div className="space-y-4">
+              {charts.orderStatusDistribution.filter(d => d.value > 0).map((entry, index) => (
+                <div key={entry.name}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-medium text-slate-600 dark:text-slate-300 flex items-center">
+                      <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}></span>
+                      {entry.name}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white">{entry.value}</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-dark-bg rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full"
+                      style={{
+                        width: `${(entry.value / kpi.totalOrders) * 100}%`,
+                        backgroundColor: PIE_COLORS[index % PIE_COLORS.length]
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 border-t border-slate-100 dark:border-dark-border grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">₹{kpi.totalSales >= 1000000 ? (kpi.totalSales / 1000000).toFixed(1) + 'M' : kpi.totalSales.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Total Sales</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">{kpi.totalOrders}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Total Orders</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-emerald-500">8.1%</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">QoQ Growth</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+};
+
+export default AdminDashboard;
