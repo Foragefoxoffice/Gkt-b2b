@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { TextField, MenuItem } from '@mui/material';
 
 const Cart = () => {
   const { token } = useSelector(state => state.auth);
@@ -28,7 +29,8 @@ const Cart = () => {
   };
 
   // Checkout form
-  const [selectedTransporter, setSelectedTransporter] = useState('');
+  const [selectedTransporter, setSelectedTransporter] = useState('default');
+  const [customTransporter, setCustomTransporter] = useState('');
   const [remarks, setRemarks] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -70,6 +72,7 @@ const Cart = () => {
       await removeCartItemApi(itemId);
       toast.success('Item removed');
       fetchData();
+      window.dispatchEvent(new Event('cartUpdated'));
     } catch (err) {
       toast.error('Failed to remove item');
     }
@@ -83,11 +86,18 @@ const Cart = () => {
 
     setIsCheckingOut(true);
     try {
+      let finalRemarks = remarks;
+      if (selectedTransporter === 'other' && customTransporter.trim()) {
+        finalRemarks = `Preferred Transporter: ${customTransporter}\n${remarks}`.trim();
+      }
+
       await createOrderApi({
-        transporterId: selectedTransporter || null,
-        remarks
+        transporterId: (selectedTransporter === 'default' || selectedTransporter === 'other') ? null : selectedTransporter,
+        remarks: finalRemarks
       });
       toast.success('Order placed successfully!');
+      window.dispatchEvent(new Event('cartUpdated'));
+      window.dispatchEvent(new Event('ordersUpdated'));
       navigate('/buyer/orders');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to place order');
@@ -129,7 +139,7 @@ const Cart = () => {
                 <div key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <div className="w-20 h-20 bg-slate-100 dark:bg-dark-border rounded-lg overflow-hidden shrink-0">
                     {item.design.image ? (
-                      <img src={getImageUrl(item.design.image)} alt={item.design.name} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(item.design.image.split(',')[0].trim())} alt={item.design.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No Img</div>
                     )}
@@ -204,25 +214,43 @@ const Cart = () => {
                   <Truck size={16} className="mr-2" />
                   Select Transporter
                 </label>
-                <select
-                  value={selectedTransporter}
-                  onChange={(e) => setSelectedTransporter(e.target.value)}
-                  className="input-field bg-white dark:bg-dark-card"
+                <TextField
+                  select
+                  value={selectedTransporter === '' ? 'default' : selectedTransporter}
+                  onChange={(e) => setSelectedTransporter(e.target.value === 'default' ? '' : e.target.value)}
+                  fullWidth
+                  className="bg-white dark:bg-dark-card"
                 >
-                  <option value="">Buyer will arrange / Decide later</option>
-                  {transporters.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                  <MenuItem value="default">Buyer will arrange / Decide later</MenuItem>
+                  {transporters.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+                  <MenuItem value="other">Other (Specify Below)</MenuItem>
+                </TextField>
               </div>
 
+              {selectedTransporter === 'other' && (
+                <div>
+                  <TextField
+                    label="Preferred Transporter Name"
+                    value={customTransporter}
+                    onChange={(e) => setCustomTransporter(e.target.value)}
+                    placeholder="Enter the name of your preferred transporter"
+                    fullWidth
+                    className="bg-white dark:bg-dark-card mt-2"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Remarks</label>
-                <textarea
+                <TextField
+                  label="Remarks"
+                  multiline
+                  rows={2}
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
-                  className="input-field bg-white dark:bg-dark-card"
-                  rows="2"
                   placeholder="Any special instructions..."
-                ></textarea>
+                  fullWidth
+                  className="bg-white dark:bg-dark-card mt-2"
+                />
               </div>
 
               <button

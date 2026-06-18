@@ -3,6 +3,7 @@ import { getDesignsApi, getCategoriesApi, addToCartApi, getCartApi } from '../Ac
 import { useSelector } from 'react-redux';
 import { Search, Filter, ShoppingCart, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { TextField, MenuItem, InputAdornment } from '@mui/material';
 
 const DesignCatalog = () => {
   const { token } = useSelector(state => state.auth);
@@ -62,6 +63,7 @@ const DesignCatalog = () => {
     try {
       await addToCartApi({ designId, quantity: 1 });
       toast.success('Added to cart');
+      window.dispatchEvent(new Event('cartUpdated'));
       setTimeout(() => {
         setCartItemIds(prev => [...prev, designId]);
         setAddingIds(prev => ({ ...prev, [designId]: false }));
@@ -86,27 +88,35 @@ const DesignCatalog = () => {
 
       {/* Filters */}
       <div className="bg-white dark:bg-dark-card p-4 rounded-xl shadow-sm border border-slate-200 dark:border-dark-border flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by design name or code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10"
-          />
-        </div>
-        <div className="w-full md:w-64 relative">
-          <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="input-field pl-10"
-          >
-            <option value="">All Categories</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
+        <TextField
+          placeholder="Search by design name or code..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ flex: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={18} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          select
+          value={selectedCategory === '' ? 'all' : selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value === 'all' ? '' : e.target.value)}
+          sx={{ width: { xs: '100%', md: '16rem' } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Filter size={18} />
+              </InputAdornment>
+            ),
+          }}
+        >
+          <MenuItem value="all">All Categories</MenuItem>
+          {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+        </TextField>
       </div>
 
       {/* Grid */}
@@ -123,11 +133,11 @@ const DesignCatalog = () => {
               <div key={design.id} className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden group hover:shadow-md transition-shadow">
                 <div className="aspect-[4/3] bg-slate-100 dark:bg-dark-border relative overflow-hidden">
                   {design.image ? (
-                    <img
-                      src={getImageUrl(design.image)}
-                      alt={design.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
-                      onClick={() => setSelectedImage(getImageUrl(design.image))}
+                    <img 
+                      src={getImageUrl(design.image.split(',')[0].trim())} 
+                      alt={design.name} 
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                      onClick={() => setSelectedImage(getImageUrl(design.image.split(',')[0].trim()))}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-400">No Image</div>

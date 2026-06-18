@@ -35,6 +35,7 @@ const BuyerOrders = () => {
       await updateOrderStatusApi(orderId, { status: 'CANCELLED', remarks: 'Cancelled by buyer' });
       toast.success('Order cancelled');
       fetchOrders();
+      window.dispatchEvent(new Event('ordersUpdated'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to cancel order');
     }
@@ -66,6 +67,7 @@ const BuyerOrders = () => {
 
       if (successCount > 0) {
         toast.success(`Added ${successCount} items to cart`);
+        window.dispatchEvent(new Event('cartUpdated'));
         navigate('/buyer/cart');
       } else {
         toast.error('Could not add any items to cart (they may be out of stock)');
@@ -73,6 +75,13 @@ const BuyerOrders = () => {
     } catch (err) {
       toast.error('Failed to repeat order');
     }
+  };
+
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '';
+    const [intPart, decPart] = val.toString().split('.');
+    const formattedInt = intPart.replace(/(\d)(?=(\d\d)+\d$)/g, "$1,");
+    return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
   };
 
   const getStatusColor = (status) => {
@@ -114,7 +123,7 @@ const BuyerOrders = () => {
                   <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-dark-bg/50 transition-colors">
                     <td className="p-4 font-medium text-slate-800 dark:text-white">{order.orderNumber}</td>
                     <td className="p-4 text-slate-600 dark:text-slate-400">{new Date(order.orderDate).toLocaleDateString()}</td>
-                    <td className="p-4 font-medium text-primary-600 dark:text-primary-400">₹{order.grandTotal.toFixed(2)}</td>
+                    <td className="p-4 font-medium text-primary-600 dark:text-primary-400">₹{formatPrice(order.grandTotal.toFixed(2))}</td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
                         {order.status}
@@ -203,8 +212,8 @@ const BuyerOrders = () => {
                             <p className="text-xs text-slate-500 font-medium">{item.design.code}</p>
                           </td>
                           <td className="p-4 font-medium">{item.quantity}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">₹{item.rate}</td>
-                          <td className="p-4 text-right font-bold text-slate-800 dark:text-slate-200">₹{item.lineTotal.toFixed(2)}</td>
+                          <td className="p-4 text-slate-600 dark:text-slate-400">₹{formatPrice(item.rate.toFixed(2))}</td>
+                          <td className="p-4 text-right font-bold text-slate-800 dark:text-slate-200">₹{formatPrice(item.lineTotal.toFixed(2))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -213,9 +222,9 @@ const BuyerOrders = () => {
               </div>
 
               <div className="bg-slate-50/50 dark:bg-dark-bg/30 p-5 rounded-xl border border-slate-100 dark:border-dark-border flex flex-col items-end space-y-2">
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 flex justify-between w-48"><span>Subtotal:</span> <span className="font-semibold text-slate-800 dark:text-slate-200">₹{selectedOrder.totalAmount.toFixed(2)}</span></p>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 flex justify-between w-48 border-b border-slate-200 dark:border-dark-border pb-2"><span>GST:</span> <span className="font-semibold text-slate-800 dark:text-slate-200">₹{selectedOrder.gstAmount.toFixed(2)}</span></p>
-                <p className="text-lg font-black text-primary-600 dark:text-primary-400 flex justify-between w-48 pt-1"><span>Total:</span> <span>₹{selectedOrder.grandTotal.toFixed(2)}</span></p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 flex justify-between w-48"><span>Subtotal:</span> <span className="font-semibold text-slate-800 dark:text-slate-200">₹{formatPrice(selectedOrder.totalAmount.toFixed(2))}</span></p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 flex justify-between w-48 border-b border-slate-200 dark:border-dark-border pb-2"><span>GST:</span> <span className="font-semibold text-slate-800 dark:text-slate-200">₹{formatPrice(selectedOrder.gstAmount.toFixed(2))}</span></p>
+                <p className="text-lg font-black text-primary-600 dark:text-primary-400 flex justify-between w-48 pt-1"><span>Total:</span> <span>₹{formatPrice(selectedOrder.grandTotal.toFixed(2))}</span></p>
               </div>
             </div>
 

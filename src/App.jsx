@@ -17,6 +17,7 @@ import DesignManager from './pages/DesignManager.jsx';
 import AdminOrders from './pages/AdminOrders.jsx';
 import InventoryDashboard from './pages/InventoryDashboard.jsx';
 import DispatchManager from './pages/DispatchManager.jsx';
+import TransporterManager from './pages/TransporterManager.jsx';
 
 import DesignCatalog from './pages/DesignCatalog.jsx';
 import Cart from './pages/Cart.jsx';
@@ -66,6 +67,7 @@ function App() {
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/inventory" element={<InventoryDashboard />} />
           <Route path="/admin/dispatches" element={<DispatchManager />} />
+          <Route path="/admin/transporters" element={<TransporterManager />} />
         </Route>
 
         <Route element={

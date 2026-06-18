@@ -3,6 +3,7 @@ import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi } from '../Action/a
 import { useSelector } from 'react-redux';
 import { ShoppingCart, Eye, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { TextField } from '@mui/material';
 
 const AdminOrders = () => {
   const { token } = useSelector(state => state.auth);
@@ -204,14 +205,15 @@ const AdminOrders = () => {
 
               {selectedOrder.status === 'PENDING' && (
                 <div className="pt-2">
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Approval Remarks (Optional)</label>
-                  <textarea
+                  <TextField
+                    label="Approval Remarks (Optional)"
+                    multiline
+                    rows={2}
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    className="input-field shadow-sm resize-none"
-                    rows="2"
                     placeholder="E.g., Approved, expect delay in shipping..."
-                  ></textarea>
+                    fullWidth
+                  />
                 </div>
               )}
             </div>

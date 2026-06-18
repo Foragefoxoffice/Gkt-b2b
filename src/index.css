@@ -31,14 +31,6 @@
   .dark .card {
     @apply bg-dark-card border-dark-border;
   }
-
-  .input-field {
-    @apply w-full rounded-lg border border-slate-300 px-2 py-2 bg-white text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all;
-  }
-
-  .dark .input-field {
-    @apply bg-dark-bg border-dark-border text-dark-text focus:ring-primary-900;
-  }
 }
 
 /* Page transitions */
@@ -149,13 +141,111 @@
 }
 
 @keyframes cart-animation {
-  0% { left: -10%; }
-  40%, 60% { left: 50%; }
-  100% { left: 110%; }
+  0% {
+    left: -10%;
+  }
+
+  40%,
+  60% {
+    left: 50%;
+  }
+
+  100% {
+    left: 110%;
+  }
 }
 
 @keyframes box-animation {
-  0%, 40% { top: -20%; }
-  60% { top: 40%; left: 52%; }
-  100% { top: 40%; left: 112%; }
+
+  0%,
+  40% {
+    top: -20%;
+  }
+
+  60% {
+    top: 40%;
+    left: 52%;
+  }
+
+  100% {
+    top: 40%;
+    left: 112%;
+  }
+}
+
+/* Material UI Dark Mode Fixes */
+.dark .MuiInputBase-root {
+  @apply text-slate-200 !important;
+}
+
+.dark .MuiOutlinedInput-notchedOutline {
+  @apply border-slate-600 !important;
+}
+
+.dark .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  @apply border-slate-500 !important;
+}
+
+.dark .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  @apply border-primary-500 !important;
+}
+
+.dark .MuiInputLabel-root {
+  @apply text-slate-400 !important;
+}
+
+.dark .MuiInputLabel-root.Mui-focused {
+  @apply text-primary-500 !important;
+}
+
+.dark .MuiSelect-icon,
+.dark .MuiSvgIcon-root {
+  @apply text-slate-400 !important;
+}
+
+/* Fix dropdown menus in dark mode */
+.dark .MuiPaper-root.MuiMenu-paper,
+.dark .MuiPaper-root.MuiPopover-paper {
+  @apply bg-dark-card text-slate-200 border border-dark-border !important;
+}
+
+.dark .MuiMenuItem-root:hover {
+  @apply bg-slate-700 !important;
+}
+
+.dark .MuiMenuItem-root.Mui-selected {
+  @apply bg-primary-900/30 !important;
+}
+
+.dark .MuiMenuItem-root.Mui-selected:hover {
+  @apply bg-primary-900/50 !important;
+}
+
+.dark .MuiInputBase-input::placeholder {
+  @apply text-slate-500 !important;
+  opacity: 1 !important;
+}
+
+/* Custom thin scrollbar with theme color globally */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary-500 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-600;
+}
+
+/* Firefox scrollbar support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme('colors.primary.500') transparent;
 }

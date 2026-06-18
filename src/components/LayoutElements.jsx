@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
+import { getAdminDashboardApi } from '../Action/api';
 import {
   LayoutDashboard, Users, ShoppingCart, Settings,
-  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap
+  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation
 } from 'lucide-react';
+import logo from '../assets/AmbigaaSilks_logo.png';
 
 export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
   <NavLink
@@ -33,6 +35,24 @@ export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
 export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, orders: 0 });
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const res = await getAdminDashboardApi();
+        if (res.data?.success) {
+          setBadgeCounts({
+            buyers: res.data.data.kpi.totalBuyers || 0,
+            orders: res.data.data.kpi.totalOrders || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch sidebar badges", error);
+      }
+    };
+    fetchBadges();
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -49,15 +69,16 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
     {
       title: 'OPERATIONS',
       items: [
-        { icon: Users, label: 'Firms & Buyers', to: '/admin/buyers', badge: 5 },
+        { icon: Users, label: 'Firms & Buyers', to: '/admin/buyers', badge: badgeCounts.buyers > 0 ? badgeCounts.buyers : null },
         { icon: Truck, label: 'Dispatches', to: '/admin/dispatches' },
+        { icon: Navigation, label: 'Transporters', to: '/admin/transporters' },
       ]
     },
     {
       title: 'COMMERCE',
       items: [
         { icon: Package, label: 'Designs', to: '/admin/designs' },
-        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: 12 },
+        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.orders > 0 ? badgeCounts.orders : null },
         { icon: ClipboardList, label: 'Inventory', to: '/admin/inventory' },
       ]
     },
@@ -84,50 +105,34 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
         } ${collapsed ? 'md:w-20' : 'w-64'}`}>
 
         {/* Logo Area */}
-        <div className="flex h-16 items-center justify-between px-6 shrink-0">
+        {!collapsed && <div className="flex h-18 items-center justify-between px-6 py-2 shrink-0">
           <div className="flex items-center overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-primary-500/20">
-              <Zap size={18} fill="currentColor" />
-            </div>
-            {!collapsed && <span className="ml-3 font-bold text-lg tracking-tight text-slate-800 dark:text-white whitespace-nowrap">GKT ERP</span>}
+            {!collapsed && <img src={logo} alt="Logo" className="h-20 w-auto" />}
+            {collapsed && <img src={logo} alt="Logo" className="h-10 w-auto" />}
+            {!collapsed && <span className="ml-2 font-bold text-lg tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AMS ERP</span>}
+          </div>
+          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
+            <X size={20} />
+          </button>
+        </div>}
+
+        {/* Logo Area Collapsed */}
+        {collapsed && <div className="flex h-18 items-center justify-center px-0 py-3 shrink-0">
+          <div className="flex items-center overflow-hidden">
+            {collapsed && <img src={logo} alt="Logo" className="h-12 w-auto" />}
           </div>
           <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
             <X size={20} />
           </button>
         </div>
-
-        {/* User Profile Summary (like the image) */}
-        {!collapsed && (
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-dark-border">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="flex -space-x-2">
-                <img className="w-8 h-8 rounded-full border-2 border-white dark:border-dark-card" src="https://i.pravatar.cc/100?img=1" alt="Avatar" />
-                <img className="w-8 h-8 rounded-full border-2 border-white dark:border-dark-card" src="https://i.pravatar.cc/100?img=2" alt="Avatar" />
-                <img className="w-8 h-8 rounded-full border-2 border-white dark:border-dark-card" src="https://i.pravatar.cc/100?img=3" alt="Avatar" />
-              </div>
-              <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-dark-border flex items-center justify-center text-slate-500 hover:bg-slate-50">
-                <span className="text-xs font-medium">...</span>
-              </button>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-slate-500">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
-                Open
-              </div>
-              <div className="flex items-center text-xs text-slate-500">
-                <span className="w-2 h-2 rounded-full bg-primary-500 mr-2"></span>
-                Ongoing Engagement
-              </div>
-            </div>
-          </div>
-        )}
+        }
 
         {/* Navigation Links */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 sidebar-scroll">
           {sidebarSections.map((section, idx) => (
             <div key={idx} className="space-y-1">
               {!collapsed && (
-                <div className="px-2 text-[11px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
+                <div className="px-2 text-[11px] font-semibold tracking-wider text-[#e2148dc4] mb-2 uppercase">
                   {section.title}
                 </div>
               )}

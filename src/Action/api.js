@@ -42,6 +42,7 @@ api.interceptors.response.use(
 
 // Auth APIs
 export const loginApi = (data) => api.post('/auth/login', data);
+export const verifyOtpApi = (data) => api.post('/auth/verify-otp', data);
 
 // Dashboard APIs
 export const getAdminDashboardApi = () => api.get('/dashboard/admin');
@@ -49,8 +50,8 @@ export const getBuyerDashboardApi = () => api.get('/dashboard/buyer');
 
 // Firm APIs
 export const getFirmsApi = () => api.get('/firms');
-export const createFirmApi = (data) => api.post('/firms', data);
-export const updateFirmApi = (id, data) => api.put(`/firms/${id}`, data);
+export const createFirmApi = (data) => api.post('/firms', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const updateFirmApi = (id, data) => api.put(`/firms/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteFirmApi = (id) => api.delete(`/firms/${id}`);
 
 // Buyer APIs
@@ -69,6 +70,7 @@ export const deleteCategoryApi = (id) => api.delete(`/categories/${id}`);
 export const getWeaversApi = () => api.get('/weavers');
 export const createWeaverApi = (data) => api.post('/weavers', data);
 export const updateWeaverApi = (id, data) => api.put(`/weavers/${id}`, data);
+export const assignDesignToLoomApi = (weaverId, loomId, data) => api.put(`/weavers/${weaverId}/looms/${loomId}/assign`, data);
 export const deleteWeaverApi = (id) => api.delete(`/weavers/${id}`);
 
 // Design APIs

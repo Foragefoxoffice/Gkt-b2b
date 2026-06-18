@@ -3,6 +3,7 @@ import { getDispatchesApi, getOrdersApi, getTransportersApi, createDispatchApi, 
 import { useSelector } from 'react-redux';
 import { Truck, Plus, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { TextField, MenuItem } from '@mui/material';
 
 const DispatchManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -198,46 +199,64 @@ const DispatchManager = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Select Approved Order <span className="text-red-500">*</span></label>
-                <select name="orderId" value={formData.orderId} onChange={handleInputChange} required className="input-field shadow-sm">
-                  <option value="">-- Select Order --</option>
-                  {approvedOrders.map(o => (
-                    <option key={o.id} value={o.id}>{o.orderNumber} ({o.buyer?.name}) - ₹{o.grandTotal}</option>
-                  ))}
-                </select>
-                {approvedOrders.length === 0 && <p className="text-xs text-red-500 mt-1">No approved orders available for dispatch.</p>}
-              </div>
+              <TextField 
+                select 
+                required 
+                label="Select Approved Order" 
+                name="orderId" 
+                value={formData.orderId} 
+                onChange={handleInputChange} 
+                helperText={approvedOrders.length === 0 ? "No approved orders available for dispatch." : ""}
+                error={approvedOrders.length === 0}
+              >
+                <MenuItem value=""><em>-- Select Order --</em></MenuItem>
+                {approvedOrders.map(o => (
+                  <MenuItem key={o.id} value={o.id}>{o.orderNumber} ({o.buyer?.name}) - ₹{o.grandTotal}</MenuItem>
+                ))}
+              </TextField>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Select Transporter <span className="text-red-500">*</span></label>
-                <select name="transporterId" value={formData.transporterId} onChange={handleInputChange} required className="input-field shadow-sm">
-                  <option value="">-- Select Transporter --</option>
-                  {transporters.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
+              <TextField 
+                select 
+                required 
+                label="Select Transporter" 
+                name="transporterId" 
+                value={formData.transporterId} 
+                onChange={handleInputChange}
+              >
+                <MenuItem value=""><em>-- Select Transporter --</em></MenuItem>
+                {transporters.map(t => (
+                  <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                ))}
+              </TextField>
 
               <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">No. of Bundles <span className="text-red-500">*</span></label>
-                  <input type="number" name="numberOfBundles" value={formData.numberOfBundles} onChange={handleInputChange} min="1" required className="input-field shadow-sm" placeholder="e.g., 5" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Tracking Number</label>
-                  <input type="text" name="trackingNumber" value={formData.trackingNumber} onChange={handleInputChange} className="input-field shadow-sm" placeholder="LR Number" />
-                </div>
+                <TextField 
+                  type="number" 
+                  required 
+                  label="No. of Bundles" 
+                  name="numberOfBundles" 
+                  value={formData.numberOfBundles} 
+                  onChange={handleInputChange} 
+                  inputProps={{ min: 1 }} 
+                  placeholder="e.g., 5" 
+                />
+                <TextField 
+                  label="Tracking Number" 
+                  name="trackingNumber" 
+                  value={formData.trackingNumber} 
+                  onChange={handleInputChange} 
+                  placeholder="LR Number" 
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Booking Copy (LR)</label>
-                <input type="file" name="bookingCopy" onChange={handleFileChange} className="input-field shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                <input type="file" name="bookingCopy" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Invoice Copy</label>
-                <input type="file" name="invoiceCopy" onChange={handleFileChange} className="input-field shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                <input type="file" name="invoiceCopy" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
               </div>
 
               <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-slate-100 dark:border-dark-border">

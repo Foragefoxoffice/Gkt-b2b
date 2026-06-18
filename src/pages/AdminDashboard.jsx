@@ -94,7 +94,7 @@ const AdminDashboard = () => {
   const sparkline3 = [{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }];
   const sparkline4 = [{ value: 30 }, { value: 50 }, { value: 40 }, { value: 60 }, { value: 55 }, { value: 70 }, { value: 90 }];
 
-  const PIE_COLORS = ['#8b5cf6', '#c4b5fd', '#fcd34d', '#34d399', '#f87171'];
+  const PIE_COLORS = ['#e2148d', '#f0a3cf', '#fcd34d', '#34d399', '#f87171'];
 
   return (
     <div className="space-y-6">
@@ -132,7 +132,7 @@ const AdminDashboard = () => {
           trend="+8.2%"
           isPositive={true}
           sparklineData={sparkline2}
-          color="#8b5cf6"
+          color="#e2148d"
         />
         <KPICard
           title="Pending Orders"
@@ -156,7 +156,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card lg:col-span-2 relative">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center">
+            <h2 className="text-md font-semibold text-slate-800 dark:text-white flex items-center">
               <TrendingUp size={16} className="mr-2 text-primary-500" /> Order Status Distribution
             </h2>
             <div className="flex items-center space-x-2 text-xs font-medium">
@@ -164,33 +164,40 @@ const AdminDashboard = () => {
               <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-primary-500 mr-2"></div> Finalized</span>
             </div>
           </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={charts.orderStatusDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.4} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-dark-border" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Bar dataKey="value" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-80 w-full flex items-center justify-center">
+            {charts.orderStatusDistribution && charts.orderStatusDistribution.some(d => d.value > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={charts.orderStatusDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#e2148d" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#f0a3cf" stopOpacity={0.4} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-dark-border" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Bar dataKey="value" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                <TrendingUp className="mb-2 opacity-20" size={48} />
+                <p>No data available</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Side Panel matching the "Gross Profit by Project" aesthetic */}
         <div className="card flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center">
+            <h2 className="text-md font-semibold text-slate-800 dark:text-white flex items-center">
               <DollarSign size={16} className="mr-2 text-primary-500" /> Sales Overview
             </h2>
             <select className="bg-slate-50 dark:bg-dark-bg border-none text-xs font-medium text-slate-600 dark:text-slate-300 rounded outline-none py-1 px-2 cursor-pointer">
@@ -200,7 +207,7 @@ const AdminDashboard = () => {
           </div>
 
           <div className="mb-6">
-            <p className="text-3xl font-bold text-slate-800 dark:text-white">₹{kpi.monthlySales.toLocaleString()}</p>
+            <p className="text-3xl font-semibold text-slate-800 dark:text-white">₹{kpi.monthlySales.toLocaleString()}</p>
             <p className="text-xs text-slate-500 mt-1">Total sales (this month)</p>
           </div>
 

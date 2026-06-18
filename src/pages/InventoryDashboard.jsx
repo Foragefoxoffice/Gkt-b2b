@@ -3,6 +3,7 @@ import { getDesignsApi, getCategoriesApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { Package, AlertTriangle, TrendingUp, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { TextField, MenuItem, InputAdornment } from '@mui/material';
 
 const InventoryDashboard = () => {
   const { token } = useSelector(state => state.auth);
@@ -42,14 +43,20 @@ const InventoryDashboard = () => {
     const matchCat = selectedCategory ? d.categoryId === parseInt(selectedCategory) : true;
     let matchStock = true;
     if (stockFilter === 'LOW') matchStock = d.availableStock > 0 && d.availableStock <= lowStockThreshold;
-    if (stockFilter === 'OUT') matchStock = d.availableStock === 0;
+    if (stockFilter === 'OUT') matchStock = d.availableStock <= 0;
     
     return matchSearch && matchCat && matchStock;
   });
 
   const totalStock = designs.reduce((acc, d) => acc + d.availableStock, 0);
   const lowStockCount = designs.filter(d => d.availableStock > 0 && d.availableStock <= lowStockThreshold).length;
-  const outOfStockCount = designs.filter(d => d.availableStock === 0).length;
+  const outOfStockCount = designs.filter(d => d.availableStock <= 0).length;
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    const cleanPath = path.replace(/\\/g, '/');
+    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -94,38 +101,45 @@ const InventoryDashboard = () => {
 
       {/* Filters */}
       <div className="bg-white dark:bg-dark-card p-4 rounded-xl shadow-sm border border-slate-200 dark:border-dark-border flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="Search designs..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10"
-          />
-        </div>
-        <div className="w-full md:w-48 relative">
-          <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select 
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="input-field pl-10"
-          >
-            <option value="">All Categories</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="w-full md:w-48">
-          <select 
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-            className="input-field"
-          >
-            <option value="ALL">All Stock Levels</option>
-            <option value="LOW">Low Stock ({`<=${lowStockThreshold}`})</option>
-            <option value="OUT">Out of Stock</option>
-          </select>
-        </div>
+        <TextField
+          placeholder="Search designs..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ flex: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={18} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          sx={{ width: { xs: '100%', md: '12rem' } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Filter size={18} />
+              </InputAdornment>
+            ),
+          }}
+        >
+          <MenuItem value=""><em>All Categories</em></MenuItem>
+          {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+        </TextField>
+        <TextField
+          select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+          sx={{ width: { xs: '100%', md: '12rem' } }}
+        >
+          <MenuItem value="ALL">All Stock Levels</MenuItem>
+          <MenuItem value="LOW">Low Stock ({`<=${lowStockThreshold}`})</MenuItem>
+          <MenuItem value="OUT">Out of Stock</MenuItem>
+        </TextField>
       </div>
 
       {/* Inventory Table */}
@@ -156,7 +170,7 @@ const InventoryDashboard = () => {
                       <td className="p-4">
                         <div className="w-16 h-16 rounded bg-slate-100 dark:bg-dark-border overflow-hidden">
                           {design.image ? (
-                            <img src={`http://localhost:5000/${design.image}`} alt={design.name} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(design.image.split(',')[0].trim())} alt={design.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No Img</div>
                           )}
@@ -169,12 +183,12 @@ const InventoryDashboard = () => {
                       <td className="p-4 text-slate-600 dark:text-slate-400">{design.category?.name}</td>
                       <td className="p-4 font-medium text-slate-800 dark:text-white">₹{design.rate}</td>
                       <td className="p-4">
-                        <span className={`text-lg font-bold ${design.availableStock === 0 ? 'text-red-500' : design.availableStock <= lowStockThreshold ? 'text-yellow-500' : 'text-green-600'}`}>
+                        <span className={`text-lg font-bold ${design.availableStock <= 0 ? 'text-red-500' : design.availableStock <= lowStockThreshold ? 'text-yellow-500' : 'text-green-600'}`}>
                           {design.availableStock}
                         </span>
                       </td>
                       <td className="p-4">
-                        {design.availableStock === 0 ? (
+                        {design.availableStock <= 0 ? (
                           <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full">Out of Stock</span>
                         ) : design.availableStock <= lowStockThreshold ? (
                           <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">Low Stock</span>

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Clock, CheckCircle, Package } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, Package, TrendingUp, PieChart as PieChartIcon, BarChart2, Activity } from 'lucide-react';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { Link } from 'react-router-dom';
 import { getBuyerDashboardApi } from '../Action/api';
 import toast from 'react-hot-toast';
@@ -19,6 +23,12 @@ const KPICard = ({ title, value, icon: Icon, colorClass }) => (
 const BuyerDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    const cleanPath = path.replace(/\\/g, '/');
+    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -59,6 +69,8 @@ const BuyerDashboard = () => {
       default: return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300';
     }
   };
+
+  const COLORS = ['#f59e0b', '#3b82f6', '#6366f1', '#10b981', '#ef4444'];
 
   return (
     <div className="space-y-8">
@@ -130,7 +142,7 @@ const BuyerDashboard = () => {
               <div key={design.id} className="group cursor-pointer">
                 <div className="aspect-square bg-slate-100 dark:bg-dark-bg rounded-lg overflow-hidden mb-2 relative">
                   {design.image ? (
-                    <img src={`http://localhost:5000${design.image}`} alt={design.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                    <img src={getImageUrl(design.image.split(',')[0].trim())} alt={design.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-400">No Img</div>
                   )}
@@ -146,6 +158,125 @@ const BuyerDashboard = () => {
           </Link>
         </div>
       </div>
+
+      {/* Analytics Charts Section */}
+      {data.charts && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Chart 1: Order Status Distribution */}
+          <div className="card h-96 flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+              <PieChartIcon className="mr-2 text-primary-500" size={20} /> Order Status
+            </h2>
+            <div className="flex-1 min-h-0">
+              {data.charts.orderStatusDistribution && data.charts.orderStatusDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.charts.orderStatusDistribution}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {data.charts.orderStatusDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip wrapperClassName="dark:bg-dark-card dark:text-white dark:border-dark-border rounded-lg shadow-lg" />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <PieChartIcon className="mb-2 opacity-20" size={48} />
+                  <p>No data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chart 2: Monthly Spend */}
+          <div className="card h-96 flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+              <BarChart2 className="mr-2 text-primary-500" size={20} /> Monthly Spend (₹)
+            </h2>
+            <div className="flex-1 min-h-0">
+              {data.charts.monthlyTrends && data.charts.monthlyTrends.some(t => t.amount > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.charts.monthlyTrends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `₹${val / 1000}k`} />
+                    <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Bar dataKey="amount" fill="#e2148d" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <BarChart2 className="mb-2 opacity-20" size={48} />
+                  <p>No data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chart 3: Monthly Orders Count */}
+          <div className="card h-96 flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+              <TrendingUp className="mr-2 text-primary-500" size={20} /> Orders Volume
+            </h2>
+            <div className="flex-1 min-h-0">
+              {data.charts.monthlyTrends && data.charts.monthlyTrends.some(t => t.orders > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.charts.monthlyTrends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Line type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <TrendingUp className="mb-2 opacity-20" size={48} />
+                  <p>No data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chart 4: Recent Order Values */}
+          <div className="card h-96 flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+              <Activity className="mr-2 text-primary-500" size={20} /> Recent Orders Value
+            </h2>
+            <div className="flex-1 min-h-0">
+              {data.charts.recentOrderValues && data.charts.recentOrderValues.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.charts.recentOrderValues} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `₹${val / 1000}k`} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="amount" stroke="#10b981" fillOpacity={1} fill="url(#colorAmount)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <Activity className="mb-2 opacity-20" size={48} />
+                  <p>No data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

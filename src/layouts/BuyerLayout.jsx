@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -8,10 +8,52 @@ import {
   LogOut, X, Package, Zap
 } from 'lucide-react';
 import { Topbar, SidebarItem } from '../components/LayoutElements';
+import { getCartApi, getOrdersApi } from '../Action/api';
+import logo from '../assets/AmbigaaSilks_logo.png';
 
 const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [cartCount, setCartCount] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCartCount = async () => {
+      try {
+        const res = await getCartApi();
+        if (res.data?.success && res.data.data.cart?.items) {
+          setCartCount(res.data.data.cart.items.length);
+        } else {
+          setCartCount(0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cart count", error);
+      }
+    };
+    const fetchOrderCount = async () => {
+      try {
+        const res = await getOrdersApi();
+        if (res.data?.success && res.data.data) {
+          const activeOrders = res.data.data.filter(o => o.status === 'PENDING' || o.status === 'APPROVED' || o.status === 'PROCESSING');
+          setOrderCount(activeOrders.length);
+        } else {
+          setOrderCount(0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch order count", error);
+      }
+    };
+    
+    fetchCartCount();
+    fetchOrderCount();
+    
+    window.addEventListener('cartUpdated', fetchCartCount);
+    window.addEventListener('ordersUpdated', fetchOrderCount);
+    return () => {
+      window.removeEventListener('cartUpdated', fetchCartCount);
+      window.removeEventListener('ordersUpdated', fetchOrderCount);
+    };
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -29,13 +71,13 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       title: 'COMMERCE',
       items: [
         { icon: Package, label: 'Designs Gallery', to: '/buyer/designs' },
-        { icon: ShoppingCart, label: 'Cart', to: '/buyer/cart' },
+        { icon: ShoppingCart, label: 'Cart', to: '/buyer/cart', badge: cartCount > 0 ? cartCount : null },
       ]
     },
     {
       title: 'HISTORY',
       items: [
-        { icon: Clock, label: 'Order History', to: '/buyer/orders' },
+        { icon: Clock, label: 'Order History', to: '/buyer/orders', badge: orderCount > 0 ? orderCount : null },
       ]
     }
   ];
@@ -49,15 +91,27 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         } ${collapsed ? 'md:w-20' : 'w-64'}`}>
 
         {/* Logo Area */}
-        <div className="flex h-16 items-center justify-between px-6 shrink-0">
+        {!collapsed && <div className="flex h-18 items-center justify-between px-6 py-2 shrink-0">
           <div className="flex items-center overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-primary-500/20">
-              <Zap size={18} fill="currentColor" />
-            </div>
-            {!collapsed && <span className="ml-3 font-bold text-lg tracking-tight text-slate-800 dark:text-white whitespace-nowrap">Buyer Portal</span>}
+            {!collapsed && <img src={logo} alt="Logo" className="h-20 w-auto" />}
+            {collapsed && <img src={logo} alt="Logo" className="h-10 w-auto" />}
+            {!collapsed && <span className="ml-2 font-bold text-lg tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AMS ERP</span>}
           </div>
-          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1"><X size={20} /></button>
+          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
+            <X size={20} />
+          </button>
+        </div>}
+
+        {/* Logo Area Collapsed */}
+        {collapsed && <div className="flex h-18 items-center justify-center px-0 py-3 shrink-0">
+          <div className="flex items-center overflow-hidden">
+            {collapsed && <img src={logo} alt="Logo" className="h-12 w-auto" />}
+          </div>
+          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
+            <X size={20} />
+          </button>
         </div>
+        }
 
         {/* User Profile Summary */}
         {!collapsed && (
@@ -81,7 +135,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
           {sidebarSections.map((section, idx) => (
             <div key={idx} className="space-y-1">
               {!collapsed && (
-                <div className="px-2 text-[11px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
+                <div className="px-2 text-[11px] font-semibold tracking-wider text-[#e2148dc4] mb-2 uppercase">
                   {section.title}
                 </div>
               )}
