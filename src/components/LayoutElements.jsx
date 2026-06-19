@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { getAdminDashboardApi } from '../Action/api';
 import {
@@ -35,7 +35,7 @@ export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
 export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, orders: 0 });
+  const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, pendingOrders: 0 });
 
   useEffect(() => {
     const fetchBadges = async () => {
@@ -44,7 +44,7 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
         if (res.data?.success) {
           setBadgeCounts({
             buyers: res.data.data.kpi.totalBuyers || 0,
-            orders: res.data.data.kpi.totalOrders || 0,
+            pendingOrders: res.data.data.kpi.pendingOrders || 0,
           });
         }
       } catch (error) {
@@ -52,6 +52,9 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
       }
     };
     fetchBadges();
+
+    window.addEventListener('ordersUpdated', fetchBadges);
+    return () => window.removeEventListener('ordersUpdated', fetchBadges);
   }, []);
 
   const handleLogout = () => {
@@ -78,7 +81,7 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
       title: 'COMMERCE',
       items: [
         { icon: Package, label: 'Designs', to: '/admin/designs' },
-        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.orders > 0 ? badgeCounts.orders : null },
+        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.pendingOrders > 0 ? badgeCounts.pendingOrders : null },
         { icon: ClipboardList, label: 'Inventory', to: '/admin/inventory' },
       ]
     },
@@ -166,7 +169,10 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
   );
 };
 
-export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => (
+export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
+  const { user } = useSelector(state => state.auth);
+
+  return (
   <header className="h-16 bg-white/80 backdrop-blur-md dark:bg-dark-card/80 border-b border-slate-100 dark:border-dark-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 transition-colors">
     <div className="flex items-center">
       <button onClick={toggleSidebar} className="p-2 mr-4 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-dark-border transition-colors focus:outline-none">
@@ -195,9 +201,14 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => (
         <Bell size={18} />
         <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-dark-card"></span>
       </button>
-      <div className="h-8 w-8 rounded-full overflow-hidden border border-slate-200 ml-2 cursor-pointer shadow-sm">
-        <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-full h-full object-cover" />
+      <div className="flex items-center justify-center h-8 w-8 rounded-full overflow-hidden border border-slate-200 ml-2 cursor-pointer shadow-sm bg-[#e2148d] text-white text-sm font-bold uppercase shrink-0">
+        {user?.profileImage ? (
+          <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`} alt="Profile" className="w-full h-full object-cover bg-white" />
+        ) : (
+          user?.name ? user.name.charAt(0) : user?.firmName ? user.firmName.charAt(0) : user?.email ? user.email.charAt(0) : 'U'
+        )}
       </div>
     </div>
   </header>
-);
+  );
+};

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Clock, CheckCircle, Package, TrendingUp, PieChart as PieChartIcon, BarChart2, Activity } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, Package, TrendingUp, TrendingDown, PieChart as PieChartIcon, BarChart2, Activity, MoreHorizontal, RefreshCcw } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -8,14 +8,49 @@ import { Link } from 'react-router-dom';
 import { getBuyerDashboardApi } from '../Action/api';
 import toast from 'react-hot-toast';
 
-const KPICard = ({ title, value, icon: Icon, colorClass }) => (
-  <div className="card flex items-center p-5 hover:shadow-md transition-shadow">
-    <div className={`p-4 rounded-full mr-4 ${colorClass}`}>
-      <Icon size={24} />
-    </div>
-    <div>
+const Sparkline = ({ color, data }) => (
+  <div className="h-10 w-24">
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id={`color${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fillOpacity={1} fill={`url(#color${color.replace('#', '')})`} />
+      </AreaChart>
+    </ResponsiveContainer>
+  </div>
+);
+
+const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
+  <div className="card p-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+    <div className="flex justify-between items-start mb-2">
       <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</h3>
-      <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{value}</p>
+      <div className="p-1.5 bg-slate-50 dark:bg-dark-border rounded text-slate-400">
+        <MoreHorizontal size={14} />
+      </div>
+    </div>
+    <div className="flex items-end justify-between">
+      <div>
+        <div className="text-2xl font-semibold text-slate-800 dark:text-white">{value}</div>
+        <div className="flex items-center mt-2 text-xs font-medium">
+          {isPositive ? (
+            <span className="text-emerald-500 flex items-center bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">
+              <TrendingUp size={12} className="mr-1" /> {trend}
+            </span>
+          ) : (
+            <span className="text-rose-500 flex items-center bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded">
+              <TrendingDown size={12} className="mr-1" /> {trend}
+            </span>
+          )}
+          <span className="text-slate-400 ml-2">vs last month</span>
+        </div>
+      </div>
+      <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+        <Sparkline color={color} data={sparklineData} />
+      </div>
     </div>
   </div>
 );
@@ -75,21 +110,49 @@ const BuyerDashboard = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back!</h1>
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white">Welcome to our B2B Buyer Portal!</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here is your account overview.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard title="Total Orders" value={summary.totalOrders} icon={ShoppingBag} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30" />
-        <KPICard title="Pending Approval" value={summary.pending} icon={Clock} colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/30" />
-        <KPICard title="In Process" value={summary.approved} icon={Package} colorClass="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30" />
-        <KPICard title="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" />
+        <KPICard
+          title="Total Orders"
+          value={summary.totalOrders}
+          trend="+12.5%"
+          isPositive={true}
+          sparklineData={[{ value: 20 }, { value: 35 }, { value: 25 }, { value: 45 }, { value: 55 }, { value: 40 }, { value: 65 }]}
+          color="#10b981"
+        />
+        <KPICard
+          title="Pending Approval"
+          value={summary.pending}
+          trend="-4.2%"
+          isPositive={false}
+          sparklineData={[{ value: 60 }, { value: 55 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }]}
+          color="#f43f5e"
+        />
+        <KPICard
+          title="In Process"
+          value={summary.approved}
+          trend="+8.2%"
+          isPositive={true}
+          sparklineData={[{ value: 30 }, { value: 25 }, { value: 40 }, { value: 35 }, { value: 50 }, { value: 45 }, { value: 60 }]}
+          color="#3b82f6"
+        />
+        <KPICard
+          title="Completed"
+          value={summary.completed}
+          trend="+3.1%"
+          isPositive={true}
+          sparklineData={[{ value: 10 }, { value: 15 }, { value: 20 }, { value: 25 }, { value: 22 }, { value: 35 }, { value: 45 }]}
+          color="#0ea5e9"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card lg:col-span-2">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Recent Orders</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-md font-semibold text-slate-800 dark:text-white flex items-center"><RefreshCcw className="mr-2 text-primary-500" size={20} /> Recent Orders</h2>
             <Link to="/buyer/orders" className="text-sm text-primary-600 hover:text-primary-700 font-medium">View All</Link>
           </div>
 
@@ -136,7 +199,7 @@ const BuyerDashboard = () => {
         </div>
 
         <div className="card">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4">New Arrivals</h2>
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">New Arrivals</h2>
           <div className="grid grid-cols-2 gap-4">
             {newArrivals.slice(0, 4).map(design => (
               <div key={design.id} className="group cursor-pointer">
@@ -164,7 +227,7 @@ const BuyerDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Chart 1: Order Status Distribution */}
           <div className="card h-96 flex flex-col">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center">
               <PieChartIcon className="mr-2 text-primary-500" size={20} /> Order Status
             </h2>
             <div className="flex-1 min-h-0">
@@ -197,7 +260,7 @@ const BuyerDashboard = () => {
 
           {/* Chart 2: Monthly Spend */}
           <div className="card h-96 flex flex-col">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center">
               <BarChart2 className="mr-2 text-primary-500" size={20} /> Monthly Spend (₹)
             </h2>
             <div className="flex-1 min-h-0">
@@ -222,7 +285,7 @@ const BuyerDashboard = () => {
 
           {/* Chart 3: Monthly Orders Count */}
           <div className="card h-96 flex flex-col">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center">
               <TrendingUp className="mr-2 text-primary-500" size={20} /> Orders Volume
             </h2>
             <div className="flex-1 min-h-0">
@@ -247,7 +310,7 @@ const BuyerDashboard = () => {
 
           {/* Chart 4: Recent Order Values */}
           <div className="card h-96 flex flex-col">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center">
               <Activity className="mr-2 text-primary-500" size={20} /> Recent Orders Value
             </h2>
             <div className="flex-1 min-h-0">

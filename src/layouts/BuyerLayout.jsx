@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import {
   LayoutDashboard, ShoppingCart, Clock,
-  LogOut, X, Package, Zap
+  LogOut, X, Package, Zap, Tag
 } from 'lucide-react';
 import { Topbar, SidebarItem } from '../components/LayoutElements';
 import { getCartApi, getOrdersApi } from '../Action/api';
+import { useSocketNotification } from '../hooks/useSocketNotification.jsx';
 import logo from '../assets/AmbigaaSilks_logo.png';
 
 const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
   const [cartCount, setCartCount] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
 
@@ -34,8 +36,8 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       try {
         const res = await getOrdersApi();
         if (res.data?.success && res.data.data) {
-          const activeOrders = res.data.data.filter(o => o.status === 'PENDING' || o.status === 'APPROVED' || o.status === 'PROCESSING');
-          setOrderCount(activeOrders.length);
+          const pendingOrders = res.data.data.filter(o => o.status === 'PENDING');
+          setOrderCount(pendingOrders.length);
         } else {
           setOrderCount(0);
         }
@@ -71,6 +73,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       title: 'COMMERCE',
       items: [
         { icon: Package, label: 'Designs Gallery', to: '/buyer/designs' },
+        { icon: Tag, label: 'Products', to: '/buyer/products' },
         { icon: ShoppingCart, label: 'Cart', to: '/buyer/cart', badge: cartCount > 0 ? cartCount : null },
       ]
     },
@@ -117,13 +120,31 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         {!collapsed && (
           <div className="px-6 py-4 border-b border-slate-100 dark:border-dark-border">
             <div className="flex items-center space-x-3 mb-3">
-              <div className="flex -space-x-2">
-                <img className="w-8 h-8 rounded-full border-2 border-white dark:border-dark-card" src="https://i.pravatar.cc/150?img=32" alt="Avatar" />
+              <div className="flex -space-x-2 shrink-0">
+                {user?.profileImage ? (
+                  <img 
+                    className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card object-cover bg-slate-100" 
+                    src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`} 
+                    alt="Avatar" 
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card bg-[#e2148d] text-white flex items-center justify-center text-lg font-bold uppercase shadow-sm">
+                    {user?.name ? user.name.charAt(0) : user?.firmName ? user.firmName.charAt(0) : user?.email ? user.email.charAt(0) : 'U'}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col justify-center overflow-hidden">
+                <span className="text-sm font-semibold text-slate-800 dark:text-white truncate max-w-[140px]">
+                  {user?.name || user?.firmName || 'User'}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
+                  {user?.email}
+                </span>
               </div>
             </div>
             <div className="space-y-1">
-              <div className="flex items-center text-xs text-slate-500">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
+              <div className="flex items-center text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-dark-bg px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-dark-border">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
                 Active Firm Account
               </div>
             </div>
@@ -169,6 +190,8 @@ const BuyerLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
+
+  useSocketNotification();
 
   const toggleSidebar = () => {
     if (window.innerWidth < 768) setMobileOpen(!mobileOpen);

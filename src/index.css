@@ -249,3 +249,8 @@
   scrollbar-width: thin;
   scrollbar-color: theme('colors.primary.500') transparent;
 }
+
+@keyframes toast-progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}

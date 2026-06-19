@@ -3,10 +3,12 @@ import { getTransportersApi, createTransporterApi, updateTransporterApi, deleteT
 import { Plus, Edit2, Trash2, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField } from '@mui/material';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const TransporterManager = () => {
   const [transporters, setTransporters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,8 +71,13 @@ const TransporterManager = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this transporter?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id);
+  };
+
+  const executeDelete = async () => {
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
     try {
       await deleteTransporterApi(id);
       toast.success('Transporter deleted successfully');
@@ -230,6 +237,17 @@ const TransporterManager = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+        title="Delete this transporter?"
+        message="This will permanently remove the transporter from your records. This action cannot be undone."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

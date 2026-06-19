@@ -22,6 +22,8 @@ import TransporterManager from './pages/TransporterManager.jsx';
 import DesignCatalog from './pages/DesignCatalog.jsx';
 import Cart from './pages/Cart.jsx';
 import BuyerOrders from './pages/BuyerOrders.jsx';
+import Products from './pages/Products.jsx';
+import ProductDetails from './pages/ProductDetails.jsx';
 
 const PrivateRoute = ({ children, roles }) => {
   const { isAuthenticated, user } = useSelector(state => state.auth);
@@ -37,6 +39,8 @@ const PrivateRoute = ({ children, roles }) => {
   return children;
 };
 
+import { SocketProvider } from './context/SocketContext.jsx';
+
 function App() {
   // Restore dark mode
   useEffect(() => {
@@ -48,42 +52,46 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<Login />} />
-        </Route>
+    <SocketProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<Login />} />
+          </Route>
 
-        <Route element={
-          <PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}>
-            <AdminLayout />
-          </PrivateRoute>
-        }>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/buyers" element={<FirmBuyerManager />} />
-          <Route path="/admin/designs" element={<DesignManager />} />
-          <Route path="/admin/orders" element={<AdminOrders />} />
-          <Route path="/admin/inventory" element={<InventoryDashboard />} />
-          <Route path="/admin/dispatches" element={<DispatchManager />} />
-          <Route path="/admin/transporters" element={<TransporterManager />} />
-        </Route>
+          <Route element={
+            <PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}>
+              <AdminLayout />
+            </PrivateRoute>
+          }>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/buyers" element={<FirmBuyerManager />} />
+            <Route path="/admin/designs" element={<DesignManager />} />
+            <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/inventory" element={<InventoryDashboard />} />
+            <Route path="/admin/dispatches" element={<DispatchManager />} />
+            <Route path="/admin/transporters" element={<TransporterManager />} />
+          </Route>
 
-        <Route element={
-          <PrivateRoute roles={['BUYER']}>
-            <BuyerLayout />
-          </PrivateRoute>
-        }>
-          <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
-          <Route path="/buyer/designs" element={<DesignCatalog />} />
-          <Route path="/buyer/cart" element={<Cart />} />
-          <Route path="/buyer/orders" element={<BuyerOrders />} />
-        </Route>
+          <Route element={
+            <PrivateRoute roles={['BUYER']}>
+              <BuyerLayout />
+            </PrivateRoute>
+          }>
+            <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
+            <Route path="/buyer/designs" element={<DesignCatalog />} />
+            <Route path="/buyer/cart" element={<Cart />} />
+            <Route path="/buyer/orders" element={<BuyerOrders />} />
+            <Route path="/buyer/products" element={<Products />} />
+            <Route path="/buyer/product/:id" element={<ProductDetails />} />
+          </Route>
 
-        <Route path="*" element={<div className="flex h-screen items-center justify-center">404 Not Found</div>} />
-      </Routes>
-    </Router>
+          <Route path="*" element={<div className="flex h-screen items-center justify-center">404 Not Found</div>} />
+        </Routes>
+      </Router>
+    </SocketProvider>
   );
 }
 

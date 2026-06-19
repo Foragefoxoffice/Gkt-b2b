@@ -26,12 +26,37 @@ api.interceptors.request.use(
 // Add response interceptor to handle common errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url === '/auth/refresh-token') {
+        return Promise.reject(error);
+      }
+      
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (refreshToken) {
+        try {
+          const res = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken });
+          if (res.data.success && res.data.data.accessToken) {
+            localStorage.setItem('token', res.data.data.accessToken);
+            if (res.data.data.refreshToken) {
+              localStorage.setItem('refreshToken', res.data.data.refreshToken);
+            }
+            originalRequest.headers.Authorization = `Bearer ${res.data.data.accessToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          console.error('Refresh token failed:', refreshError);
+        }
+      }
+      
       // Clear storage and redirect on session expiry
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      // Only redirect if not already on the login page to prevent refresh loop
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -75,6 +100,7 @@ export const deleteWeaverApi = (id) => api.delete(`/weavers/${id}`);
 
 // Design APIs
 export const getDesignsApi = () => api.get('/designs');
+export const getDesignByIdApi = (id) => api.get(`/designs/${id}`);
 export const createDesignApi = (data) => api.post('/designs', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateDesignApi = (id, data) => api.put(`/designs/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteDesignApi = (id) => api.delete(`/designs/${id}`);

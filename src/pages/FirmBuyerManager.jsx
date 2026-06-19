@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { Plus, Edit2, Trash2, Building, Users, MoreHorizontal, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, IconButton } from '@mui/material';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const FirmBuyerManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -21,6 +22,7 @@ const FirmBuyerManager = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const getImageUrl = (path) => {
     if (!path) return '';
@@ -117,8 +119,13 @@ const FirmBuyerManager = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id);
+  };
+
+  const executeDelete = async () => {
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
     try {
       if (activeTab === 'firms') await deleteFirmApi(id);
       else await deleteBuyerApi(id);
@@ -390,6 +397,17 @@ const FirmBuyerManager = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+        title={`Delete this ${activeTab === 'firms' ? 'firm' : 'buyer'}?`}
+        message="This will permanently remove the record from your system. This action cannot be undone."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

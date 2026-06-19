@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar, Topbar } from '../components/LayoutElements';
+import { useSocketNotification } from '../hooks/useSocketNotification.jsx';
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
+
+  useSocketNotification();
 
   const toggleSidebar = () => {
     if (window.innerWidth < 768) {

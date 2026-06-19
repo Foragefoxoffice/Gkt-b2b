@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCategoriesApi, createCategoryApi, updateCategoryApi, deleteCategoryApi, getWeaversApi, createWeaverApi, updateWeaverApi, deleteWeaverApi, assignDesignToLoomApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
-import { TextField, MenuItem, Autocomplete, Chip } from '@mui/material';
+import { TextField, MenuItem, Autocomplete, Chip, InputAdornment } from '@mui/material';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const DesignManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -14,7 +16,132 @@ const DesignManager = () => {
   const [weavers, setWeavers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const Sparkline = ({ color, data }) => (
+    <div className="h-10 w-24">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id={`color${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fillOpacity={1} fill={`url(#color${color.replace('#', '')})`} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
+    <div className="card p-5 hover:shadow-md transition-shadow relative overflow-hidden group border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl shadow-sm">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</h3>
+        <div className="p-1.5 bg-slate-50 dark:bg-dark-bg rounded text-slate-400 border border-slate-100 dark:border-dark-border">
+          <MoreHorizontal size={14} />
+        </div>
+      </div>
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-2xl font-semibold text-slate-800 dark:text-white">{value}</p>
+          {trend && (
+            <div className="flex items-center mt-2 text-xs font-medium">
+              {isPositive ? (
+                <span className="text-emerald-500 flex items-center bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                  <TrendingUp size={12} className="mr-1" /> {trend}
+                </span>
+              ) : (
+                <span className="text-rose-500 flex items-center bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded">
+                  <TrendingDown size={12} className="mr-1" /> {trend}
+                </span>
+              )}
+              <span className="text-slate-400 ml-2">vs last month</span>
+            </div>
+          )}
+        </div>
+        {sparklineData && (
+          <div className="opacity-80 group-hover:opacity-100 transition-opacity">
+            <Sparkline color={color} data={sparklineData} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // Form State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [sortBy, setSortBy] = useState('newest');
+
+  useEffect(() => {
+    setSearchTerm('');
+    setSelectedCategory('ALL');
+    setSortBy('newest');
+  }, [activeTab]);
+
+  const filteredData = useMemo(() => {
+    let data = [];
+    if (activeTab === 'designs') data = [...designs];
+    else if (activeTab === 'categories') data = [...categories];
+    else data = [...weavers];
+
+    data = data.filter(item => {
+      const matchSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.code || '').toLowerCase().includes(searchTerm.toLowerCase());
+      let matchCat = true;
+      if (activeTab === 'designs' && selectedCategory !== 'ALL') {
+        matchCat = item.categoryId === parseInt(selectedCategory);
+      }
+      return matchSearch && matchCat;
+    });
+
+    data.sort((a, b) => {
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '');
+      if (activeTab === 'designs') {
+        if (sortBy === 'price_asc') return (a.rate || 0) - (b.rate || 0);
+        if (sortBy === 'price_desc') return (b.rate || 0) - (a.rate || 0);
+      }
+      return 0;
+    });
+
+    return data;
+  }, [designs, categories, weavers, activeTab, searchTerm, selectedCategory, sortBy]);
+
+  // Calculate Stats
+  const sparkline1 = useMemo(() => [{ value: 40 }, { value: 30 }, { value: 45 }, { value: 50 }, { value: 35 }, { value: 60 }, { value: 70 }], []);
+  const sparkline2 = useMemo(() => [{ value: 20 }, { value: 30 }, { value: 25 }, { value: 40 }, { value: 60 }, { value: 50 }, { value: 80 }], []);
+  const sparkline3 = useMemo(() => [{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }], []);
+  const sparkline4 = useMemo(() => [{ value: 30 }, { value: 50 }, { value: 40 }, { value: 60 }, { value: 55 }, { value: 70 }, { value: 90 }], []);
+
+  const stats = useMemo(() => {
+    if (activeTab === 'designs') {
+      const totalStock = designs.reduce((acc, d) => acc + (parseInt(d.availableStock) || 0), 0);
+      const lowStock = designs.filter(d => (parseInt(d.availableStock) || 0) < 20).length;
+      const totalValue = designs.reduce((acc, d) => acc + ((parseFloat(d.rate) || 0) * (parseInt(d.availableStock) || 0)), 0);
+      return [
+        { title: 'Total Designs', value: designs.length, trend: '+4.2%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Total Stock', value: totalStock, trend: '+1.5%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
+        { title: 'Low Stock Items', value: lowStock, trend: '-2.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' },
+        { title: 'Est. Stock Value', value: `₹${(totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : (totalValue / 1000).toFixed(1) + 'k')}`, trend: '+5.4%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' }
+      ];
+    } else if (activeTab === 'weavers') {
+      const totalLooms = weavers.reduce((acc, w) => acc + (w.looms ? w.looms.length : 0), 0);
+      const assignedLooms = weavers.reduce((acc, w) => acc + (w.looms ? w.looms.filter(l => l.designId).length : 0), 0);
+      const availableLooms = totalLooms - assignedLooms;
+      return [
+        { title: 'Total Weavers', value: weavers.length, trend: '+2.1%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Total Looms', value: totalLooms, trend: '+0.0%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
+        { title: 'Assigned Looms', value: assignedLooms, trend: '+15.2%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' },
+        { title: 'Available Looms', value: availableLooms, trend: '-5.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' }
+      ];
+    } else {
+      return [
+        { title: 'Total Categories', value: categories.length, trend: '+12.5%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Active Categories', value: categories.length, trend: '+8.2%', isPositive: true, sparklineData: sparkline2, color: '#e2148d' },
+      ];
+    }
+  }, [activeTab, designs, weavers, categories, sparkline1, sparkline2, sparkline3, sparkline4]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
@@ -23,12 +150,15 @@ const DesignManager = () => {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
-  
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewItem, setViewItem] = useState(null);
+  const [viewSliderIndex, setViewSliderIndex] = useState(0);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const handleViewDetails = (item) => {
     setViewItem(item);
+    setViewSliderIndex(0);
     setIsViewModalOpen(true);
   };
 
@@ -44,10 +174,17 @@ const DesignManager = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Listen for socket events to refresh list in real-time
+    const handleUpdate = () => fetchData();
+    window.addEventListener('inventoryUpdated', handleUpdate);
+    return () => window.removeEventListener('inventoryUpdated', handleUpdate);
   }, [activeTab]);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (designs.length === 0 && categories.length === 0 && weavers.length === 0) {
+      setLoading(true);
+    }
     try {
       if (activeTab === 'designs') {
         const [dRes, cRes, wRes] = await Promise.all([
@@ -127,6 +264,14 @@ const DesignManager = () => {
     if (item) {
       if (activeTab === 'weavers') {
         setFormData({ ...item, looms: item.looms ? item.looms.map(l => l.loomNo).join(', ') : '' });
+      } else if (activeTab === 'designs') {
+        let parsedColorStocks = {};
+        if (item.colorStock) {
+          try {
+            parsedColorStocks = JSON.parse(item.colorStock);
+          } catch(e) {}
+        }
+        setFormData({ ...item, colorStocks: parsedColorStocks });
       } else {
         setFormData(item);
       }
@@ -135,7 +280,7 @@ const DesignManager = () => {
         setExistingImages(item.image.split(',').map(s => s.trim()).filter(Boolean));
       }
     } else {
-      if (activeTab === 'designs') setFormData({ name: '', code: '', rate: '', availableStock: '', categoryId: '' });
+      if (activeTab === 'designs') setFormData({ name: '', code: '', rate: '', availableStock: '', categoryId: '', colorStocks: {} });
       if (activeTab === 'categories') setFormData({ name: '', code: '' });
       if (activeTab === 'weavers') setFormData({ name: '', code: '', looms: '' });
     }
@@ -154,7 +299,7 @@ const DesignManager = () => {
         const val = JSON.parse(valueString);
         payload = { designId: val.id, assignedColor: val.color };
       }
-      
+
       await assignDesignToLoomApi(selectedWeaver.id, loomId, payload);
       toast.success('Design assigned');
       fetchData();
@@ -182,7 +327,13 @@ const DesignManager = () => {
       // If it's a design, we might have an image, so use FormData
       if (activeTab === 'designs') {
         const form = new FormData();
-        Object.keys(formData).forEach(key => form.append(key, formData[key]));
+        Object.keys(formData).forEach(key => {
+          if (key === 'colorStocks') {
+            form.append(key, JSON.stringify(formData[key]));
+          } else {
+            form.append(key, formData[key]);
+          }
+        });
         imageFiles.forEach(file => form.append('images', file));
         existingImages.forEach(url => form.append('existingImages', url));
         payload = form;
@@ -212,8 +363,13 @@ const DesignManager = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id);
+  };
+
+  const executeDelete = async () => {
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
     try {
       if (activeTab === 'designs') await deleteDesignApi(id);
       else if (activeTab === 'categories') await deleteCategoryApi(id);
@@ -226,106 +382,194 @@ const DesignManager = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Design Management</h1>
-        <button onClick={() => openModal()} className="btn btn-primary flex items-center">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white">Design Management</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage categories, designs, and weavers</p>
+        </div>
+        <button onClick={() => openModal()} className="btn btn-primary flex items-center shadow-sm">
           <Plus size={18} className="mr-2" />
           Add {activeTab === 'designs' ? 'Design' : activeTab === 'categories' ? 'Category' : 'Weaver'}
         </button>
       </div>
 
-      <div className="flex space-x-2 border-b border-slate-200 dark:border-dark-border mb-6">
-        <button className={`flex items-center px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'categories' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('categories')}>
-          <Tag size={18} className="mr-2" />
-          Categories
+      <div className="bg-white dark:bg-dark-card p-1.5 rounded-xl inline-flex mb-0 shadow-sm border border-slate-100 dark:border-dark-border">
+        <button className={`flex items-center px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${activeTab === 'categories' ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-dark-bg'}`} onClick={() => setActiveTab('categories')}>
+          <Tag size={18} className="mr-2" /> Categories
         </button>
-        <button className={`flex items-center px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'designs' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('designs')}>
-          <Package size={18} className="mr-2" />
-          Designs
+        <button className={`flex items-center px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${activeTab === 'designs' ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-dark-bg'}`} onClick={() => setActiveTab('designs')}>
+          <Package size={18} className="mr-2" /> Designs
         </button>
-        <button className={`flex items-center px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'weavers' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('weavers')}>
-          <Users size={18} className="mr-2" />
-          Weavers
+        <button className={`flex items-center px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${activeTab === 'weavers' ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-dark-bg'}`} onClick={() => setActiveTab('weavers')}>
+          <Users size={18} className="mr-2" /> Weavers
         </button>
       </div>
 
-      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden">
+      {/* Stats Section */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${stats.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-6 mb-6`}>
+        {stats.map((stat, idx) => (
+          <KPICard key={idx} {...stat} />
+        ))}
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-dark-border mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center mb-6">
+          <div className="flex items-center gap-2 text-slate-800 dark:text-white font-medium">
+            <SlidersHorizontal size={18} className="text-primary-600" /> Filters & Sorting
+          </div>
+          <div className="w-full lg:w-96">
+            <TextField
+              fullWidth
+              size="small"
+              placeholder={`Search ${activeTab} by name or code...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={18} className="text-slate-400" />
+                  </InputAdornment>
+                )
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activeTab === 'designs' && (
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <MenuItem value="ALL">All Categories</MenuItem>
+              {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </TextField>
+          )}
+
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Sort By"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <MenuItem value="newest">Newest First</MenuItem>
+            <MenuItem value="name_asc">Name (A - Z)</MenuItem>
+            <MenuItem value="name_desc">Name (Z - A)</MenuItem>
+            {activeTab === 'designs' && [
+              <MenuItem key="pa" value="price_asc">Price (Low to High)</MenuItem>,
+              <MenuItem key="pd" value="price_desc">Price (High to Low)</MenuItem>
+            ]}
+          </TextField>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-500">Loading...</div>
+          <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+            <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+            Loading data...
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
+                <tr>
                   {activeTab === 'designs' ? (
                     <>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Image</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Code</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Design Name</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Category</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Rate</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Stock</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Image</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Design Name</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rate</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stock</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </>
                   ) : activeTab === 'categories' ? (
                     <>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Code</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Category Name</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-32">Code</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Category Name</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </>
                   ) : (
                     <>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Code</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Weaver Name</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Looms</th>
-                      <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-32">Code</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weaver Name</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Looms</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </>
                   )}
                 </tr>
               </thead>
-              <tbody>
-                {(activeTab === 'designs' ? designs : activeTab === 'categories' ? categories : weavers).length === 0 ? (
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-500">No data found.</td>
+                    <td colSpan="7" className="p-16 text-center">
+                      <Archive className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
+                      <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">No records found</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
+                    </td>
                   </tr>
                 ) : (
-                  (activeTab === 'designs' ? designs : activeTab === 'categories' ? categories : weavers).map((item) => (
-                    <tr key={item.id} className="border-b border-slate-100 dark:border-dark-border hover:bg-slate-50 dark:hover:bg-dark-bg/50">
+                  filteredData.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
                       {activeTab === 'designs' ? (
                         <>
-                          <td className="p-4">
-                            {item.image ? (
-                              <img
-                                src={getImageUrl(item.image.split(',')[0].trim())}
-                                alt={item.name}
-                                className="w-12 h-12 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => setSelectedImage(getImageUrl(item.image.split(',')[0].trim()))}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-slate-100 dark:bg-dark-border rounded-md flex items-center justify-center text-slate-400">No Img</div>
-                            )}
+                          <td className="px-6 py-3">
+                            <div className="flex items-center">
+                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-bg overflow-hidden border border-slate-200 dark:border-dark-border flex-shrink-0 cursor-pointer shadow-sm" onClick={() => item.image && setSelectedImage(getImageUrl(item.image.split(',')[0].trim()))}>
+                                {item.image ? (
+                                  <img src={getImageUrl(item.image.split(',')[0].trim())} alt={item.name} className="w-full h-full object-cover hover:scale-110 transition-transform duration-300" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50">NO IMG</div>
+                                )}
+                              </div>
+                            </div>
                           </td>
-                          <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.code}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{item.name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{item.category?.name || '-'}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">₹{formatPrice(item.rate)}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{item.availableStock}</td>
+                          <td className="px-6 py-3">
+                            <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700">{item.code}</span>
+                          </td>
+                          <td className="px-6 py-3 font-semibold text-slate-800 dark:text-white text-sm">{item.name}</td>
+                          <td className="px-6 py-3">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50">
+                              {item.category?.name || 'Uncategorized'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{formatPrice(item.rate)}</td>
+                          <td className="px-6 py-3">
+                            <div className="flex flex-col justify-center">
+                              <span className="font-bold text-slate-800 dark:text-white">{item.availableStock} <span className="font-medium text-slate-500 text-xs">units</span></span>
+                              {item.availableStock < 10 && <span className="text-[10px] text-red-500 font-bold mt-0.5 uppercase tracking-wide">Low Stock</span>}
+                            </div>
+                          </td>
                         </>
                       ) : activeTab === 'categories' ? (
                         <>
-                          <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.code}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{item.name}</td>
+                          <td className="px-6 py-4">
+                            <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700">{item.code}</span>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-800 dark:text-white text-sm">{item.name}</td>
                         </>
                       ) : (
                         <>
-                          <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.code}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{item.name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">
-                            <div className="flex items-center gap-2">
-                              <span>{item.looms?.length || 0} Looms</span>
+                          <td className="px-6 py-4">
+                            <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700">{item.code}</span>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-800 dark:text-white text-sm">{item.name}</td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">
+                                {item.looms?.length || 0} Looms
+                              </span>
                               {(item.looms?.filter(l => l.designId)?.length || 0) > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium tracking-wide bg-green-100 text-green-700">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                                   {item.looms.filter(l => l.designId).length} Assigned
                                 </span>
                               )}
@@ -333,23 +577,25 @@ const DesignManager = () => {
                           </td>
                         </>
                       )}
-                      <td className="p-4 text-right">
-                        {activeTab === 'designs' && (
-                          <button onClick={() => handleViewDetails(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg mr-2 transition-colors" title="View Details">
-                            <Eye size={18} />
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                          {activeTab === 'designs' && (
+                            <button onClick={() => handleViewDetails(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors" title="View Details">
+                              <Eye size={18} />
+                            </button>
+                          )}
+                          {activeTab === 'weavers' && (
+                            <button onClick={() => openLoomModal(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors" title="Manage Looms">
+                              <Layers size={18} />
+                            </button>
+                          )}
+                          <button onClick={() => openModal(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Edit">
+                            <Edit2 size={18} />
                           </button>
-                        )}
-                        {activeTab === 'weavers' && (
-                          <button onClick={() => openLoomModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg mr-2 transition-colors" title="Manage Looms">
-                            <Layers size={18} />
+                          <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Delete">
+                            <Trash2 size={18} />
                           </button>
-                        )}
-                        <button onClick={() => openModal(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg mr-2 transition-colors">
-                          <Edit2 size={18} />
-                        </button>
-                        <button onClick={() => handleDelete(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 size={18} />
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -405,11 +651,34 @@ const DesignManager = () => {
                         )}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-5">
+                    <div className="grid grid-cols-2 gap-5">
                       <TextField required label="Rate (₹)" value={formatPrice(formData.rate)} onChange={e => handlePriceChange(e, 'rate')} />
                       <TextField type="number" label="GST %" value={formData.gstPercent} onChange={e => setFormData({ ...formData, gstPercent: e.target.value })} inputProps={{ step: "0.01" }} />
-                      <TextField type="number" required label="Stock" value={formData.availableStock} onChange={e => setFormData({ ...formData, availableStock: e.target.value })} />
                     </div>
+                    {formData.color && formData.color.split(',').filter(Boolean).length > 0 ? (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Stock Allocation per Color</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {formData.color.split(',').map(c => c.trim()).filter(Boolean).map(color => (
+                            <TextField 
+                              key={color} 
+                              type="number" 
+                              label={`${color} Stock`} 
+                              value={formData.colorStocks?.[color] !== undefined ? formData.colorStocks[color] : ''}
+                              onChange={e => setFormData(prev => ({ 
+                                ...prev, 
+                                colorStocks: { ...prev.colorStocks, [color]: parseInt(e.target.value) || 0 } 
+                              }))} 
+                              required
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1">
+                        <TextField type="number" required label="Total Stock" value={formData.availableStock} onChange={e => setFormData({ ...formData, availableStock: e.target.value })} />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Images</label>
                       <div className="flex flex-col gap-4">
@@ -491,10 +760,10 @@ const DesignManager = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(() => {
                     const designVariants = designs.flatMap(d => {
-                      if (!d.color) return [{ ...d, _variantId: JSON.stringify({id: d.id, color: null}), _color: null }];
+                      if (!d.color) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
                       const colors = d.color.split(',').map(c => c.trim()).filter(Boolean);
-                      if (colors.length === 0) return [{ ...d, _variantId: JSON.stringify({id: d.id, color: null}), _color: null }];
-                      return colors.map(c => ({ ...d, _variantId: JSON.stringify({id: d.id, color: c}), _color: c }));
+                      if (colors.length === 0) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
+                      return colors.map(c => ({ ...d, _variantId: JSON.stringify({ id: d.id, color: c }), _color: c }));
                     });
                     return selectedWeaver.looms.map(loom => (
                       <div key={loom.id} className="p-4 border border-slate-200 dark:border-dark-border rounded-xl bg-slate-50 dark:bg-dark-bg flex flex-col gap-3">
@@ -508,7 +777,7 @@ const DesignManager = () => {
                           select
                           size="small"
                           label="Assigned Design"
-                          value={loom.designId ? JSON.stringify({id: loom.designId, color: loom.assignedColor || null}) : ''}
+                          value={loom.designId ? JSON.stringify({ id: loom.designId, color: loom.assignedColor || null }) : ''}
                           onChange={(e) => handleAssignDesign(loom.id, e.target.value)}
                           fullWidth
                         >
@@ -563,11 +832,48 @@ const DesignManager = () => {
                 <div className="md:w-1/3">
                   <div className="rounded-xl overflow-hidden bg-slate-100 dark:bg-dark-border border border-slate-200 dark:border-dark-border shadow-sm">
                     {viewItem.image ? (
-                      <div className="flex flex-col gap-2">
-                        {viewItem.image.split(',').map((img, idx) => (
-                          <img key={idx} src={getImageUrl(img.trim())} alt={`${viewItem.name} ${idx + 1}`} className="w-full h-auto object-cover" />
-                        ))}
-                      </div>
+                      (() => {
+                        const images = viewItem.image.split(',').map(img => img.trim()).filter(Boolean);
+                        return (
+                          <div className="relative group">
+                            <div className="aspect-square overflow-hidden">
+                              <img
+                                src={getImageUrl(images[viewSliderIndex] || images[0])}
+                                alt={`${viewItem.name} ${viewSliderIndex + 1}`}
+                                className="w-full h-full object-cover transition-all duration-300"
+                              />
+                            </div>
+                            {images.length > 1 && (
+                              <>
+                                <button
+                                  onClick={() => setViewSliderIndex(prev => prev <= 0 ? images.length - 1 : prev - 1)}
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-dark-card/90 hover:bg-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <ChevronLeft size={18} className="text-slate-700 dark:text-white" />
+                                </button>
+                                <button
+                                  onClick={() => setViewSliderIndex(prev => prev >= images.length - 1 ? 0 : prev + 1)}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-dark-card/90 hover:bg-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <ChevronRight size={18} className="text-slate-700 dark:text-white" />
+                                </button>
+                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                  {images.map((_, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => setViewSliderIndex(idx)}
+                                      className={`w-2 h-2 rounded-full transition-all ${idx === viewSliderIndex ? 'bg-white scale-125 shadow-md' : 'bg-white/50 hover:bg-white/75'}`}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  {viewSliderIndex + 1}/{images.length}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div className="w-full aspect-square flex items-center justify-center text-slate-400 flex-col">
                         <ImageIcon size={40} className="mb-2 opacity-50" />
@@ -578,10 +884,10 @@ const DesignManager = () => {
                 </div>
                 <div className="md:w-2/3 space-y-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{viewItem.name}</h3>
+                    <h3 className="text-2xl font-semibold text-slate-800 dark:text-white">{viewItem.name}</h3>
                     <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">{viewItem.code}</p>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-5 pt-4 border-t border-slate-100 dark:border-dark-border">
                     <div>
                       <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Category</p>
@@ -622,6 +928,17 @@ const DesignManager = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+        title={`Delete this ${activeTab === 'designs' ? 'design' : activeTab === 'categories' ? 'category' : 'weaver'}?`}
+        message="This will permanently remove the record from your system. This action cannot be undone."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

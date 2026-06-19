@@ -21,7 +21,7 @@ const AuthLayout = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-2xl font-semibold tracking-wide">Ambigaa Silks</span>
-              <span className="text-sm font-medium text-primary-200 mt-0.5 opacity-90">A Legacy of Trust in Every Thread.</span>
+              <span className="text-sm font-medium text-primary-200 mt-0.5 opacity-90">Wholesale manufacturer of handloom pure silk sarees.</span>
             </div>
           </div>
 
