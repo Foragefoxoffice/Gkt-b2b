@@ -45,10 +45,10 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         console.error("Failed to fetch order count", error);
       }
     };
-    
+
     fetchCartCount();
     fetchOrderCount();
-    
+
     window.addEventListener('cartUpdated', fetchCartCount);
     window.addEventListener('ordersUpdated', fetchOrderCount);
     return () => {
@@ -98,7 +98,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
           <div className="flex items-center overflow-hidden">
             {!collapsed && <img src={logo} alt="Logo" className="h-20 w-auto" />}
             {collapsed && <img src={logo} alt="Logo" className="h-10 w-auto" />}
-            {!collapsed && <span className="ml-2 font-bold text-lg tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AMS ERP</span>}
+            {!collapsed && <span className="ml-2 font-bold text-md tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AGS-SMT <br></br>B2B PORTAL</span>}
           </div>
           <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
             <X size={20} />
@@ -122,10 +122,10 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
             <div className="flex items-center space-x-3 mb-3">
               <div className="flex -space-x-2 shrink-0">
                 {user?.profileImage ? (
-                  <img 
-                    className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card object-cover bg-slate-100" 
-                    src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`} 
-                    alt="Avatar" 
+                  <img
+                    className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card object-cover bg-slate-100"
+                    src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`}
+                    alt="Avatar"
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card bg-[#e2148d] text-white flex items-center justify-center text-lg font-bold uppercase shadow-sm">

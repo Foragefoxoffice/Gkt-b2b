@@ -171,20 +171,21 @@ const DesignCatalog = () => {
           </button>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6 px-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-2">
           {filteredDesigns.map((design, i) => (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 % 0.3 }}
               key={design.id}
-              className="break-inside-avoid relative group rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-bg cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-200/50 dark:border-dark-border"
+              onClick={() => navigate(`/buyer/product/${design.id}`)}
+              className="relative group rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-bg cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-200/50 dark:border-dark-border"
             >
               {getImageUrl(design.image) ? (
                 <img
                   src={getImageUrl(design.image)}
                   alt={design.name}
-                  className="w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  className="w-full aspect-[4/5] object-cover transition-transform duration-700 group-hover:scale-110"
                   loading="lazy"
                 />
               ) : (

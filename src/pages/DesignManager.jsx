@@ -148,8 +148,16 @@ const DesignManager = () => {
   const [formData, setFormData] = useState({});
   const [imageFiles, setImageFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [imageColors, setImageColors] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [existingImageColors, setExistingImageColors] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
+
+  const computedColors = useMemo(() => {
+    return Array.from(new Set([...existingImageColors, ...imageColors]))
+      .map(c => c ? c.trim() : '')
+      .filter(Boolean);
+  }, [existingImageColors, imageColors]);
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewItem, setViewItem] = useState(null);
@@ -239,11 +247,13 @@ const DesignManager = () => {
     setImageFiles(prev => [...prev, ...validFiles]);
     const newPreviews = validFiles.map(f => URL.createObjectURL(f));
     setPreviewUrls(prev => [...prev, ...newPreviews]);
+    setImageColors(prev => [...prev, ...validFiles.map(() => '')]);
     e.target.value = '';
   };
 
   const removeNewImage = (index) => {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImageColors(prev => prev.filter((_, i) => i !== index));
     setPreviewUrls(prev => {
       const newUrls = [...prev];
       URL.revokeObjectURL(newUrls[index]);
@@ -253,13 +263,16 @@ const DesignManager = () => {
 
   const removeExistingImage = (index) => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
+    setExistingImageColors(prev => prev.filter((_, i) => i !== index));
   };
 
   const openModal = (item = null) => {
     setEditItem(item);
     setImageFiles([]);
     setPreviewUrls([]);
+    setImageColors([]);
     setExistingImages([]);
+    setExistingImageColors([]);
 
     if (item) {
       if (activeTab === 'weavers') {
@@ -278,6 +291,14 @@ const DesignManager = () => {
 
       if (activeTab === 'designs' && item.image) {
         setExistingImages(item.image.split(',').map(s => s.trim()).filter(Boolean));
+        let exColors = [];
+        if (item.imageColorMap) {
+          try {
+            const parsedColors = JSON.parse(item.imageColorMap);
+            exColors = Array.isArray(parsedColors) ? parsedColors : [];
+          } catch(e) {}
+        }
+        setExistingImageColors(exColors);
       }
     } else {
       if (activeTab === 'designs') setFormData({ name: '', code: '', rate: '', availableStock: '', categoryId: '', colorStocks: {} });
@@ -327,15 +348,32 @@ const DesignManager = () => {
       // If it's a design, we might have an image, so use FormData
       if (activeTab === 'designs') {
         const form = new FormData();
+        const finalColorString = computedColors.join(', ');
+        const appendedKeys = new Set();
+        
         Object.keys(formData).forEach(key => {
-          if (key === 'colorStocks') {
+          if (key === 'color') {
+            form.append('color', finalColorString);
+            appendedKeys.add('color');
+          } else if (key === 'colorStocks') {
             form.append(key, JSON.stringify(formData[key]));
+            appendedKeys.add(key);
           } else {
             form.append(key, formData[key]);
+            appendedKeys.add(key);
           }
         });
-        imageFiles.forEach(file => form.append('images', file));
-        existingImages.forEach(url => form.append('existingImages', url));
+        if (!appendedKeys.has('color')) {
+          form.append('color', finalColorString);
+        }
+        imageFiles.forEach((file, idx) => {
+          form.append('images', file);
+          form.append('imageColors', imageColors[idx] || '');
+        });
+        existingImages.forEach((url, idx) => {
+          form.append('existingImages', url);
+          form.append('existingImageColors', existingImageColors[idx] || '');
+        });
         payload = form;
       }
 
@@ -631,35 +669,17 @@ const DesignManager = () => {
                         <MenuItem value=""><em>Select Category</em></MenuItem>
                         {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
                       </TextField>
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        options={['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Purple', 'Orange', 'Grey', 'Brown', 'Navy', 'Maroon']}
-                        value={formData.color ? formData.color.split(',').map(c => c.trim()).filter(Boolean) : []}
-                        onChange={(e, newValue) => setFormData({ ...formData, color: newValue.join(', ') })}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip variant="outlined" size="small" label={option} {...getTagProps({ index })} key={index} />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Colors"
-                            placeholder="Type and press enter..."
-                          />
-                        )}
-                      />
+                      <TextField required label="Rate (₹)" value={formatPrice(formData.rate)} onChange={e => handlePriceChange(e, 'rate')} />
                     </div>
                     <div className="grid grid-cols-2 gap-5">
-                      <TextField required label="Rate (₹)" value={formatPrice(formData.rate)} onChange={e => handlePriceChange(e, 'rate')} />
                       <TextField type="number" label="GST %" value={formData.gstPercent} onChange={e => setFormData({ ...formData, gstPercent: e.target.value })} inputProps={{ step: "0.01" }} />
+                      <TextField label="Material" value={formData.material || ''} onChange={e => setFormData({ ...formData, material: e.target.value })} />
                     </div>
-                    {formData.color && formData.color.split(',').filter(Boolean).length > 0 ? (
+                    {computedColors.length > 0 && (
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Stock Allocation per Color</label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          {formData.color.split(',').map(c => c.trim()).filter(Boolean).map(color => (
+                          {computedColors.map(color => (
                             <TextField 
                               key={color} 
                               type="number" 
@@ -674,10 +694,6 @@ const DesignManager = () => {
                           ))}
                         </div>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1">
-                        <TextField type="number" required label="Total Stock" value={formData.availableStock} onChange={e => setFormData({ ...formData, availableStock: e.target.value })} />
-                      </div>
                     )}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Images</label>
@@ -685,19 +701,55 @@ const DesignManager = () => {
                         <input type="file" multiple onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 flex-1" accept="image/*" />
                         <div className="flex flex-wrap gap-4 mt-2">
                           {existingImages.map((url, index) => (
-                            <div key={`existing-${index}`} className="relative w-16 h-16 shrink-0 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden">
-                              <img src={getImageUrl(url)} alt="Preview" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(getImageUrl(url))} />
-                              <button type="button" onClick={() => removeExistingImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                              </button>
+                            <div key={`existing-${index}`} className="flex flex-col gap-2 w-32 shrink-0">
+                              <div className="relative w-32 h-48 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg">
+                                <img src={getImageUrl(url)} alt="Preview" className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(getImageUrl(url))} />
+                                {index === 0 && (
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-wider">Front</div>
+                                )}
+                                <button type="button" onClick={() => removeExistingImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                              </div>
+                              {index > 0 && (
+                                <input 
+                                  type="text"
+                                  placeholder="Color name"
+                                  value={existingImageColors[index] || ''}
+                                  onChange={(e) => {
+                                    const newColors = [...existingImageColors];
+                                    newColors[index] = e.target.value;
+                                    setExistingImageColors(newColors);
+                                  }}
+                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400"
+                                />
+                              )}
                             </div>
                           ))}
                           {previewUrls.map((url, index) => (
-                            <div key={`new-${index}`} className="relative w-16 h-16 shrink-0 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden">
-                              <img src={url} alt="Preview" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(url)} />
-                              <button type="button" onClick={() => removeNewImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                              </button>
+                            <div key={`new-${index}`} className="flex flex-col gap-2 w-32 shrink-0">
+                              <div className="relative w-32 h-48 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg">
+                                <img src={url} alt="Preview" className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(url)} />
+                                {index === 0 && existingImages.length === 0 && (
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-wider">Front</div>
+                                )}
+                                <button type="button" onClick={() => removeNewImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                              </div>
+                              {(index > 0 || existingImages.length > 0) && (
+                                <input 
+                                  type="text"
+                                  placeholder="Color name"
+                                  value={imageColors[index] || ''}
+                                  onChange={(e) => {
+                                    const newColors = [...imageColors];
+                                    newColors[index] = e.target.value;
+                                    setImageColors(newColors);
+                                  }}
+                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400"
+                                />
+                              )}
                             </div>
                           ))}
                         </div>

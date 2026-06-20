@@ -4,7 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getBuyerDashboardApi } from '../Action/api';
 import toast from 'react-hot-toast';
 
@@ -56,6 +56,7 @@ const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
 );
 
 const BuyerDashboard = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -202,7 +203,7 @@ const BuyerDashboard = () => {
           <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">New Arrivals</h2>
           <div className="grid grid-cols-2 gap-4">
             {newArrivals.slice(0, 4).map(design => (
-              <div key={design.id} className="group cursor-pointer">
+              <div key={design.id} className="group cursor-pointer" onClick={() => navigate(`/buyer/product/${design.id}`, { state: { product: design } })}>
                 <div className="aspect-square bg-slate-100 dark:bg-dark-bg rounded-lg overflow-hidden mb-2 relative">
                   {design.image ? (
                     <img src={getImageUrl(design.image.split(',')[0].trim())} alt={design.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />

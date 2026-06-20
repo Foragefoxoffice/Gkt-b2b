@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDesignsApi, getCategoriesApi, addToCartApi, getCartApi } from '../Action/api';
-import { ShoppingCart, Search, Filter, Plus, Minus, X, Package, Star, TrendingUp, Tag, ChevronRight, Check } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Plus, Minus, X, Package, Star, TrendingUp, Tag, ChevronRight, Check, Eye } from 'lucide-react';
 import { Select, MenuItem, Slider, Checkbox, FormControlLabel } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -87,8 +87,15 @@ export default function Products() {
         fetchInitialData();
         fetchCart();
         const handleCartUpdate = () => fetchCart();
+        const handleInventoryUpdate = () => fetchInitialData();
+        
         window.addEventListener('cartUpdated', handleCartUpdate);
-        return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+        window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+        
+        return () => {
+            window.removeEventListener('cartUpdated', handleCartUpdate);
+            window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+        };
     }, []);
 
     const fetchCart = async () => {
@@ -528,11 +535,11 @@ export default function Products() {
                                 </div>
                             </div>
 
-                            <div className="p-6 space-y-6">
+                            <div className="p-6 space-y-4">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="text-sm font-mono text-slate-500 bg-slate-100 dark:bg-dark-border px-2 py-0.5 rounded inline-block mb-1">{selectedProduct.code}</p>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Available Stock: <span className="font-semibold text-slate-800 dark:text-white">{selectedProduct.availableStock}</span></p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Total Stock: <span className="font-semibold text-slate-800 dark:text-white">{selectedProduct.availableStock}</span></p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-semibold text-primary-600 dark:text-primary-400">₹{formatPrice(selectedProduct.rate.toFixed(2))}</p>
@@ -540,86 +547,32 @@ export default function Products() {
                                     </div>
                                 </div>
 
-                                {/* Color Selection */}
+                                {selectedProduct.material && (
+                                    <div className="pt-2">
+                                        <p className="text-sm text-slate-500">Material</p>
+                                        <p className="font-medium text-slate-800 dark:text-white">{selectedProduct.material}</p>
+                                    </div>
+                                )}
+
                                 {availableColors.length > 0 && (
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Select Color</p>
-                                        <div className="flex flex-wrap gap-2">
+                                    <div className="pt-2">
+                                        <p className="text-sm text-slate-500 mb-1.5">Available Colors</p>
+                                        <div className="flex flex-wrap gap-1.5">
                                             {availableColors.map(c => (
-                                                <button
-                                                    key={c}
-                                                    onClick={() => {
-                                                        setSelectedColor(c);
-                                                        const newMax = stockMap[c] !== undefined ? parseInt(stockMap[c]) : parseInt(selectedProduct.availableStock);
-                                                        if (quantity > newMax) setQuantity(Math.max(1, newMax));
-                                                    }}
-                                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${selectedColor === c
-                                                        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-400 ring-2 ring-primary-500/20'
-                                                        : 'bg-white dark:bg-dark-bg border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                                                        }`}
-                                                >
+                                                <span key={c} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md font-medium">
                                                     {c} {stockMap[c] !== undefined && <span className="opacity-60 ml-1">({stockMap[c]})</span>}
-                                                </button>
+                                                </span>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Quantity */}
-                                <div>
-                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Quantity</p>
-                                    <div className="flex items-center space-x-4">
-                                        <button
-                                            onClick={() => {
-                                                setQuantity(Math.max(1, quantity - 1));
-                                                setIsAdded(false);
-                                            }}
-                                            disabled={quantity <= 1}
-                                            className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors ${quantity <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                        >
-                                            <Minus size={18} />
-                                        </button>
-                                        <span className="text-xl font-semibold text-slate-800 dark:text-white w-12 text-center">{quantity}</span>
-                                        <button
-                                            onClick={() => {
-                                                setQuantity(Math.min(maxQuantity, quantity + 1));
-                                                setIsAdded(false);
-                                            }}
-                                            disabled={quantity >= maxQuantity}
-                                            className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors ${quantity >= maxQuantity ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                        >
-                                            <Plus size={18} />
-                                        </button>
-                                    </div>
-                                    {quantity >= maxQuantity && maxQuantity > 0 && (
-                                        <p className="text-xs text-red-500 mt-2">Maximum available stock reached</p>
-                                    )}
-                                </div>
-
-                                {/* Action */}
-                                <div className="pt-4 mt-6 border-t border-slate-100 dark:border-dark-border">
+                                <div className="pt-6 mt-4 border-t border-slate-100 dark:border-dark-border">
                                     <button
-                                        onClick={handleAddToCart}
-                                        disabled={isAdded}
-                                        className={`w-full py-3.5 font-medium rounded-xl flex items-center justify-center transition-all ${isAdded
-                                            ? 'bg-emerald-500 text-white shadow-emerald-500/30'
-                                            : 'bg-primary-600 hover:bg-primary-500 text-white shadow-lg shadow-primary-500/30 hover:-translate-y-0.5 active:translate-y-0'
-                                            }`}
+                                        onClick={() => navigate(`/buyer/product/${selectedProduct.id}`, { state: { product: selectedProduct } })}
+                                        className="w-full py-3.5 font-medium rounded-xl flex items-center justify-center transition-all bg-primary-600 hover:bg-primary-500 text-white shadow-lg shadow-primary-500/30 hover:-translate-y-0.5 active:translate-y-0"
                                     >
-                                        {isAdded ? (
-                                            <motion.div
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                className="flex items-center"
-                                            >
-                                                <Check size={20} className="mr-2" />
-                                                Added to Cart!
-                                            </motion.div>
-                                        ) : (
-                                            <>
-                                                <ShoppingCart size={20} className="mr-2" /> Add to Cart
-                                            </>
-                                        )}
+                                        View Full Product Page
                                     </button>
                                 </div>
                             </div>
@@ -666,14 +619,9 @@ const ProductCard = ({ product, onAddToCart, getImageUrl, formatPrice, navigate 
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
                     <button
                         onClick={(e) => { e.stopPropagation(); onAddToCart(); }}
-                        disabled={outOfStock}
-                        className={`px-5 py-2.5 rounded-full font-semibold flex items-center transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 ${outOfStock ? 'bg-slate-500 text-white cursor-not-allowed' : 'bg-white text-primary-600 hover:bg-primary-50 hover:scale-105'}`}
+                        className="px-5 py-2.5 rounded-full font-semibold flex items-center transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-white text-primary-600 hover:bg-primary-50 hover:scale-105 shadow-lg"
                     >
-                        {outOfStock ? 'Out of Stock' : (
-                            <>
-                                <ShoppingCart size={18} className="mr-2" /> Add to Cart
-                            </>
-                        )}
+                        <Eye size={18} className="mr-2" /> View Details
                     </button>
                 </div>
             </div>

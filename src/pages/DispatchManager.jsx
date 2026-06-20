@@ -306,7 +306,7 @@ const DispatchManager = () => {
                           </button>
                         )}
                         {dispatch.status === 'DISPATCHED' && (
-                          <div className="transform scale-[0.9] origin-right w-[180px]">
+                          <div className="transform scale-[0.9] origin-right w-[180px] mt-3">
                             <TruckButton
                               apiCall={() => handleMarkDeliveredApi(dispatch.id)}
                               onComplete={onMarkDeliveredAnimationComplete}

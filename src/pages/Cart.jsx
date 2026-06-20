@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ChevronDown, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import orderPlacedSound from '../assets/order_placed.mp3';
@@ -37,6 +37,32 @@ const Cart = () => {
   const [remarks, setRemarks] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  const getColorImage = (design, color) => {
+    if (!design || !color) return null;
+
+    const imagesArray = design.image ? design.image.split(',').map(s => s.trim()) : [];
+    
+    try {
+      if (design.imageColorMap) {
+        const parsedMap = typeof design.imageColorMap === 'string' ? JSON.parse(design.imageColorMap) : design.imageColorMap;
+        
+        if (Array.isArray(parsedMap)) {
+          const idx = parsedMap.findIndex(c => c === color);
+          if (idx !== -1 && imagesArray[idx]) {
+            return getImageUrl(imagesArray[idx]);
+          }
+        } else if (typeof parsedMap === 'object' && parsedMap !== null) {
+          if (parsedMap[color]) {
+            return getImageUrl(parsedMap[color]);
+          }
+        }
+      }
+    } catch (e) { }
+
+    return null;
+  };
 
   useEffect(() => {
     fetchData();
@@ -63,8 +89,8 @@ const Cart = () => {
     let max = parseInt(item.design?.availableStock || 0);
     if (item.color && item.design?.colorStock) {
       try {
-        const parsed = typeof item.design.colorStock === 'string' 
-          ? JSON.parse(item.design.colorStock) 
+        const parsed = typeof item.design.colorStock === 'string'
+          ? JSON.parse(item.design.colorStock)
           : item.design.colorStock;
         if (parsed[item.color] !== undefined) {
           max = parseInt(parsed[item.color]);
@@ -184,7 +210,6 @@ const Cart = () => {
         </motion.div>
       ) : (
         <div className="lg:grid lg:grid-cols-12 lg:gap-10">
-
           {/* Cart Items */}
           <div className="lg:col-span-7 xl:col-span-8 mb-10 lg:mb-0">
             <div className="bg-white dark:bg-dark-card rounded-3xl shadow-sm border border-slate-100 dark:border-dark-border overflow-hidden">
@@ -195,17 +220,28 @@ const Cart = () => {
               </div>
 
               <div className="divide-y divide-slate-100 dark:divide-dark-border">
-                {cartData.items.map((item, index) => (
+                {Object.values(cartData.items.reduce((acc, item) => {
+                  if (!acc[item.design.id]) acc[item.design.id] = { design: item.design, items: [], totalQuantity: 0, totalPrice: 0 };
+                  acc[item.design.id].items.push(item);
+                  acc[item.design.id].totalQuantity += item.quantity;
+                  acc[item.design.id].totalPrice += item.quantity * item.design.rate;
+                  return acc;
+                }, {})).map((group, index) => (
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    key={item.id}
-                    className="p-6 flex flex-col sm:flex-row gap-6 hover:bg-slate-50/50 dark:hover:bg-dark-bg/50 transition-colors"
+                    key={group.design.id}
+                    className="p-6 flex flex-col sm:flex-row gap-6 hover:bg-slate-50/20 dark:hover:bg-dark-bg/20 transition-colors"
                   >
                     <div className="w-full sm:w-32 h-32 bg-slate-100 dark:bg-dark-bg rounded-2xl overflow-hidden shrink-0 border border-slate-200/50 dark:border-dark-border">
-                      {item.design.image ? (
-                        <img src={getImageUrl(item.design.image.split(',')[0].trim())} alt={item.design.name} className="w-full h-full object-cover" />
+                      {group.design.image ? (
+                        <img 
+                          src={getImageUrl(group.design.image.split(',')[0].trim())} 
+                          alt={group.design.name} 
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                          onClick={() => setSelectedImage(getImageUrl(group.design.image.split(',')[0].trim()))}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No Image</div>
                       )}
@@ -215,59 +251,86 @@ const Cart = () => {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="text-xl font-semibold text-slate-800 dark:text-white">
-                            {item.design.name}
+                            {group.design.name}
                           </h3>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-sm font-mono text-slate-500 bg-slate-100 dark:bg-dark-border px-2 py-0.5 rounded">
-                              {item.design.code}
+                              {group.design.code}
                             </span>
-                            {item.color && (
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-dark-border px-2 py-0.5 rounded-full flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-slate-400" style={{ backgroundColor: item.color.toLowerCase() }}></div>
-                                {item.color}
-                              </span>
-                            )}
                           </div>
                         </div>
                         <p className="font-bold text-lg text-slate-800 dark:text-white">
-                          ₹{formatPrice(item.design.rate)} <span className="text-sm text-slate-500 font-normal">/ unit</span>
+                          ₹{formatPrice(group.design.rate)} <span className="text-sm text-slate-500 font-normal">/ unit</span>
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between mt-4 sm:mt-auto">
-                        <div className="flex items-center bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm">
-                          <button
-                            onClick={() => handleUpdateQuantity(item, -1)}
-                            className={`p-3 transition-colors ${item.quantity <= 1 ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <div className="w-12 text-center font-semibold text-slate-800 dark:text-white">{item.quantity}</div>
-                          <button
-                            onClick={() => handleUpdateQuantity(item, 1)}
-                            className={`p-3 transition-colors ${item.quantity >= getMaxQuantity(item) ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            disabled={item.quantity >= getMaxQuantity(item)}
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
+                      <div className="mt-4 space-y-3">
+                        {group.items.map(item => (
+                          <div key={item.id} className="flex flex-wrap items-center justify-between bg-slate-50 dark:bg-dark-bg/50 p-2.5 rounded-xl border border-slate-100 dark:border-dark-border/50">
+                            <div className="flex items-center gap-3 mb-2 sm:mb-0">
+                              {item.color ? (
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-3">
+                                  {(() => {
+                                    const colorImg = getColorImage(group.design, item.color);
+                                    if (colorImg) {
+                                      return (
+                                        <div 
+                                          className="w-20 h-20 rounded bg-white overflow-hidden border border-slate-200 dark:border-dark-border shadow-sm shrink-0 cursor-pointer hover:shadow-md transition-shadow"
+                                          onClick={() => setSelectedImage(colorImg)}
+                                        >
+                                          <img src={colorImg} alt={item.color} className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                                        </div>
+                                      );
+                                    }
+                                    return <div className="w-4 h-4 rounded-full border border-slate-300 shadow-sm shrink-0" style={{ backgroundColor: item.color.toLowerCase() }}></div>;
+                                  })()}
+                                  <span className="font-semibold">{item.color}</span>
+                                </span>
+                              ) : (
+                                <span className="text-sm font-medium text-slate-500 italic">Default Color</span>
+                              )}
+                            </div>
 
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-emerald-600 mb-0.5">Total</p>
-                            <span className="font-semibold text-xl text-primary-600 dark:text-primary-400">
-                              ₹{formatPrice((item.quantity * item.design.rate).toFixed(2))}
-                            </span>
+                            <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-end">
+                              <div className="flex items-center bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-lg overflow-hidden shadow-sm h-9">
+                                <button
+                                  onClick={() => handleUpdateQuantity(item, -1)}
+                                  className={`px-3 h-full flex items-center transition-colors ${item.quantity <= 1 ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                  disabled={item.quantity <= 1}
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <div className="w-10 text-center font-semibold text-sm text-slate-800 dark:text-white">{item.quantity}</div>
+                                <button
+                                  onClick={() => handleUpdateQuantity(item, 1)}
+                                  className={`px-3 h-full flex items-center transition-colors ${item.quantity >= getMaxQuantity(item) ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                  disabled={item.quantity >= getMaxQuantity(item)}
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+
+                              <div className="text-right min-w-[80px]">
+                                <span className="font-semibold text-primary-600 dark:text-primary-400">
+                                  ₹{formatPrice((item.quantity * group.design.rate).toFixed(2))}
+                                </span>
+                              </div>
+
+                              <button
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                title="Remove color"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="w-10 mt-3 h-10 rounded-full flex items-center justify-center text-red-500 bg-red-50 dark:bg-red-900/20 transition-all"
-                            title="Remove item"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 pt-3 flex justify-end items-center border-t border-slate-100 dark:border-dark-border/50">
+                        <span className="text-sm text-slate-500 mr-3">Subtotal ({group.totalQuantity} items):</span>
+                        <span className="font-bold text-lg text-slate-800 dark:text-white">₹{formatPrice(group.totalPrice.toFixed(2))}</span>
                       </div>
                     </div>
                   </motion.div>
@@ -323,7 +386,7 @@ const Cart = () => {
 
               <div className="space-y-6">
                 <div>
-                  <label className="flex items-center text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">
+                  <label className="flex items-center text-md font-semibold text-slate-700 dark:text-slate-300 mb-3">
                     <Truck size={16} className="mr-2 text-primary-500" />
                     Transporter
                   </label>
@@ -371,7 +434,7 @@ const Cart = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                     Remarks (Optional)
                   </label>
                   <TextField
@@ -396,7 +459,7 @@ const Cart = () => {
               </div>
 
               {/* Checkout Button */}
-              <div className="mt-4">
+              <div className="mt-8">
                 <TruckButton
                   apiCall={handleCheckout}
                   onComplete={handleAnimationComplete}
@@ -406,6 +469,36 @@ const Cart = () => {
           </div>
         </div>
       )}
+
+      {/* Quick View Lightbox */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed modal_main inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setSelectedImage(null)}
+          >
+            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl"></div>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute -top-12 right-0 md:-right-12 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+              <img src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Success Modal */}
       <AnimatePresence>

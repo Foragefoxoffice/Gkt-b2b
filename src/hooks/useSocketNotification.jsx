@@ -13,6 +13,14 @@ export const useSocketNotification = () => {
     const handleNotification = (data) => {
       console.log('Received notification:', data);
       
+      // Dispatch event to make it available to the notification UI panel
+      const notificationData = {
+        ...data,
+        id: Date.now() + Math.random(),
+        timestamp: new Date()
+      };
+      window.dispatchEvent(new CustomEvent('newNotification', { detail: notificationData }));
+      
       // Trigger window events to update badges and UI
       if (data.type?.startsWith('ORDER_')) {
         window.dispatchEvent(new Event('ordersUpdated'));
