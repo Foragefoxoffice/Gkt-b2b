@@ -4,6 +4,7 @@ import { getDesignByIdApi, addToCartApi, getCartApi } from '../Action/api';
 import { ShoppingCart, ArrowLeft, Plus, Minus, Package, Check, Sparkles, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import ImageZoom from '../components/ImageZoom';
 
 const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, onImageClick }) => {
     const [quantity, setQuantity] = useState(1);
@@ -17,6 +18,7 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
 
     const maxQuantity = stock !== undefined ? parseInt(stock) : parseInt(product.availableStock);
     const outOfStock = maxQuantity <= 0;
+    const maxAllowed = outOfStock ? 99999 : maxQuantity;
 
     const handleAddToCart = async () => {
         try {
@@ -64,9 +66,9 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
                     <img src={image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-4">
-                        <div 
-                          className="w-20 h-20 rounded-full border-4 border-white dark:border-dark-border shadow-md mb-4 transform group-hover:scale-110 transition-transform duration-500"
-                          style={{ background: getBgStyle() }}
+                        <div
+                            className="w-20 h-20 rounded-full border-4 border-white dark:border-dark-border shadow-md mb-4 transform group-hover:scale-110 transition-transform duration-500"
+                            style={{ background: getBgStyle() }}
                         />
                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-2">
                             {color || 'No Image'}
@@ -88,7 +90,7 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
 
                 {outOfStock && (
                     <div className="absolute inset-0 bg-white/60 dark:bg-black/60 flex items-center justify-center z-20 pointer-events-none">
-                        <span className="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">Out of Stock</span>
+                        <span className="bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">Out of Stock</span>
                     </div>
                 )}
             </div>
@@ -110,8 +112,8 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
 
                 {/* Stock info */}
                 <div className="mb-3">
-                    <p className={`text-[11px] font-medium ${outOfStock ? 'text-rose-500' : 'text-emerald-500'}`}>
-                        {outOfStock ? 'Unavailable' : `${maxQuantity} Available`}
+                    <p className={`text-[11px] font-medium ${outOfStock ? 'text-amber-600' : 'text-emerald-500'}`}>
+                        {outOfStock ? 'Production Order Only' : `${maxQuantity} Available`}
                     </p>
                 </div>
 
@@ -121,18 +123,18 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
                     <div className="flex items-center justify-between bg-slate-50 dark:bg-dark-bg rounded-lg p-0 border border-slate-100 dark:border-dark-border">
                         <button
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            disabled={quantity <= 1 || outOfStock}
-                            className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${quantity <= 1 || outOfStock ? 'text-slate-300 dark:text-slate-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                            disabled={quantity <= 1}
+                            className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${quantity <= 1 ? 'text-slate-300 dark:text-slate-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                         >
                             <Minus size={14} />
                         </button>
                         <span className="text-xs font-semibold text-slate-800 dark:text-white w-6 text-center">
-                            {outOfStock ? 0 : quantity}
+                            {quantity}
                         </span>
                         <button
-                            onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
-                            disabled={quantity >= maxQuantity || outOfStock}
-                            className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${quantity >= maxQuantity || outOfStock ? 'text-slate-300 dark:text-slate-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                            onClick={() => setQuantity(Math.min(maxAllowed, quantity + 1))}
+                            disabled={quantity >= maxAllowed}
+                            className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${quantity >= maxAllowed ? 'text-slate-300 dark:text-slate-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                         >
                             <Plus size={14} />
                         </button>
@@ -140,19 +142,24 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
 
                     {/* Add Button */}
                     <motion.button
-                        whileTap={outOfStock || isAdded ? {} : { scale: 0.97 }}
+                        whileTap={isAdded ? {} : { scale: 0.97 }}
                         onClick={handleAddToCart}
-                        disabled={outOfStock || isAdded}
-                        className={`w-full py-2.5 text-xs font-medium rounded-lg flex items-center justify-center transition-all ${outOfStock
-                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                            : isAdded
-                                ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                        disabled={isAdded}
+                        className={`w-full py-2.5 text-xs font-medium rounded-lg flex items-center justify-center transition-all ${isAdded
+                            ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                            : outOfStock
+                                ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm shadow-amber-500/20'
                                 : 'bg-primary-600 hover:bg-primary-500 text-white shadow-sm shadow-primary-500/20'}`}
                     >
                         {isAdded ? (
                             <>
                                 <Check size={14} className="mr-1.5" />
                                 Added
+                            </>
+                        ) : outOfStock ? (
+                            <>
+                                <ShoppingCart size={14} className="mr-1.5" />
+                                Add for Production
                             </>
                         ) : (
                             <>
@@ -181,6 +188,15 @@ export default function ProductDetails() {
         window.scrollTo(0, 0);
         fetchProduct();
         fetchCart();
+
+        const handleInventoryUpdate = () => {
+            fetchProduct();
+        };
+
+        window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+        return () => {
+            window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+        };
     }, [id]);
 
     const fetchCart = async () => {
@@ -349,11 +365,11 @@ export default function ProductDetails() {
                         >
                             <button
                                 onClick={() => setSelectedImage(null)}
-                                className="absolute -top-12 right-0 md:-right-12 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+                                className="absolute -top-12 right-0 md:-right-[-120px] z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
-                            <img src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+                            <ImageZoom src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
                         </motion.div>
                     </motion.div>
                 )}

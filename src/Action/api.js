@@ -68,6 +68,13 @@ api.interceptors.response.use(
 // Auth APIs
 export const loginApi = (data) => api.post('/auth/login', data);
 export const verifyOtpApi = (data) => api.post('/auth/verify-otp', data);
+export const forgotPasswordApi = (data) => api.post('/auth/forgot-password', data);
+export const resetPasswordApi = (data) => api.post('/auth/reset-password', data);
+
+// User APIs
+export const getProfileApi = () => api.get('/users/profile');
+export const updateProfileApi = (data) => api.put('/users/profile', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const changePasswordApi = (data) => api.put('/users/change-password', data);
 
 // Dashboard APIs
 export const getAdminDashboardApi = () => api.get('/dashboard/admin');
@@ -78,6 +85,13 @@ export const getFirmsApi = () => api.get('/firms');
 export const createFirmApi = (data) => api.post('/firms', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateFirmApi = (id, data) => api.put(`/firms/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteFirmApi = (id) => api.delete(`/firms/${id}`);
+
+// Company APIs
+export const getCompaniesApi = () => api.get('/companies');
+export const createCompanyApi = (data) => api.post('/companies', data);
+export const updateCompanyApi = (id, data) => api.put(`/companies/${id}`, data);
+export const deleteCompanyApi = (id) => api.delete(`/companies/${id}`);
+
 
 // Buyer APIs
 export const getBuyersApi = () => api.get('/buyers');
@@ -118,14 +132,20 @@ export const updateCartItemApi = (itemId, data) => api.put(`/cart/update/${itemI
 export const removeCartItemApi = (itemId) => api.delete(`/cart/remove/${itemId}`);
 
 // Order APIs
-export const getOrdersApi = () => api.get('/orders');
+export const getOrdersApi = (params) => api.get('/orders', { params });
 export const getOrderByIdApi = (id) => api.get(`/orders/${id}`);
 export const createOrderApi = (data) => api.post('/orders', data);
 export const updateOrderStatusApi = (id, data) => api.put(`/orders/${id}/status`, data);
 
+// Product Request APIs
+export const getProductRequestsApi = (params) => api.get('/product-requests', { params });
+export const getProductRequestByIdApi = (id) => api.get(`/product-requests/${id}`);
+export const createProductRequestApi = (data) => api.post('/product-requests', data);
+export const updateProductRequestStatusApi = (id, data) => api.put(`/product-requests/${id}/status`, data);
+
 // Dispatch APIs
 export const getDispatchesApi = (params) => api.get('/dispatches', { params });
 export const createDispatchApi = (data) => api.post('/dispatches', data, { headers: { 'Content-Type': 'multipart/form-data' } });
-export const updateDispatchStatusApi = (id, data) => api.put(`/dispatches/${id}/status`, data);
+export const updateDispatchStatusApi = (id, data) => api.put(`/dispatches/${id}/status`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {});
 
 export default api;

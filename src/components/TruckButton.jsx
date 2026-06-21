@@ -17,7 +17,7 @@ const TruckButton = ({ apiCall, onComplete, defaultText = 'Place Order', success
     const truck = truckRef.current;
 
     setIsAnimating(true);
-    
+
     // Start animation
     button.classList.add('animation');
 
@@ -73,21 +73,21 @@ const TruckButton = ({ apiCall, onComplete, defaultText = 'Place Order', success
               }
               // Reset the button after some time so it can be used again if needed
               setTimeout(() => {
-                  if(buttonRef.current) {
-                      setIsAnimating(false);
-                      buttonRef.current.classList.remove('animation', 'done');
-                      gsap.set(truckRef.current, { x: 4 });
-                      gsap.set(buttonRef.current, {
-                        '--progress': 0,
-                        '--hx': 0,
-                        '--bx': 0,
-                        '--box-s': .5,
-                        '--box-o': 0,
-                        '--truck-y': 0,
-                        '--truck-y-n': -26
-                      });
-                      gsap.set(boxRef.current, { x: -24, y: -6 });
-                  }
+                if (buttonRef.current) {
+                  setIsAnimating(false);
+                  buttonRef.current.classList.remove('animation', 'done');
+                  gsap.set(truckRef.current, { x: 4 });
+                  gsap.set(buttonRef.current, {
+                    '--progress': 0,
+                    '--hx': 0,
+                    '--bx': 0,
+                    '--box-s': .5,
+                    '--box-o': 0,
+                    '--truck-y': 0,
+                    '--truck-y-n': -26
+                  });
+                  gsap.set(boxRef.current, { x: -24, y: -6 });
+                }
               }, 3000);
             }
           }).to(truck, {
@@ -103,7 +103,7 @@ const TruckButton = ({ apiCall, onComplete, defaultText = 'Place Order', success
             x: 96,
             duration: .4
           });
-          
+
           gsap.to(button, {
             '--progress': 1,
             duration: 2.4,

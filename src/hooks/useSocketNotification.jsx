@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useSocket } from '../context/SocketContext';
-import { Bell, ShoppingCart, Truck, X } from 'lucide-react';
+import { Bell, ShoppingCart, Truck, X, Package } from 'lucide-react';
 import React from 'react';
 
 export const useSocketNotification = () => {
@@ -29,10 +29,14 @@ export const useSocketNotification = () => {
         window.dispatchEvent(new Event('dispatchesUpdated'));
         window.dispatchEvent(new Event('ordersUpdated')); // Dispatches affect order status too
       }
+      if (data.type?.startsWith('PRODUCT_REQUEST_')) {
+        window.dispatchEvent(new Event('productRequestsUpdated'));
+      }
 
       const getIcon = (type) => {
         if (type?.startsWith('ORDER')) return <ShoppingCart className="h-5 w-5 text-white" />;
         if (type?.startsWith('DISPATCH')) return <Truck className="h-5 w-5 text-white" />;
+        if (type === 'STOCK_UPDATED') return <Package className="h-5 w-5 text-white" />;
         return <Bell className="h-5 w-5 text-white" />;
       };
 
@@ -41,6 +45,7 @@ export const useSocketNotification = () => {
         if (type === 'ORDER_PROCESSING') return 'from-blue-400 to-blue-600 shadow-blue-500/30';
         if (type === 'ORDER_CANCELLED') return 'from-rose-400 to-rose-600 shadow-rose-500/30';
         if (type?.startsWith('DISPATCH')) return 'from-purple-400 to-purple-600 shadow-purple-500/30';
+        if (type === 'STOCK_UPDATED') return 'from-amber-400 to-amber-600 shadow-amber-500/30';
         return 'from-indigo-400 to-indigo-600 shadow-indigo-500/30';
       };
 
@@ -92,9 +97,16 @@ export const useSocketNotification = () => {
     };
     socket.on('inventoryUpdated', handleInventoryUpdate);
 
+    // Listen for raw product requests updates
+    const handleProductRequestsUpdate = () => {
+      window.dispatchEvent(new Event('productRequestsUpdated'));
+    };
+    socket.on('productRequestsUpdated', handleProductRequestsUpdate);
+
     return () => {
       socket.off('notification', handleNotification);
       socket.off('inventoryUpdated', handleInventoryUpdate);
+      socket.off('productRequestsUpdated', handleProductRequestsUpdate);
     };
   }, [socket]);
 };

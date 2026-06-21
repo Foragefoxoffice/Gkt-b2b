@@ -5,7 +5,7 @@ import { logout } from '../store/slices/authSlice';
 import { getAdminDashboardApi } from '../Action/api';
 import {
   LayoutDashboard, Users, ShoppingCart, Settings,
-  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation
+  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building
 } from 'lucide-react';
 import logo from '../assets/AmbigaaSilks_logo.png';
 
@@ -35,7 +35,7 @@ export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
 export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, pendingOrders: 0 });
+  const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, pendingOrders: 0, pendingRequests: 0, pendingDispatches: 0 });
 
   useEffect(() => {
     const fetchBadges = async () => {
@@ -45,6 +45,8 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
           setBadgeCounts({
             buyers: res.data.data.kpi.totalBuyers || 0,
             pendingOrders: res.data.data.kpi.pendingOrders || 0,
+            pendingRequests: res.data.data.kpi.pendingRequests || 0,
+            pendingDispatches: res.data.data.kpi.pendingDispatches || 0,
           });
         }
       } catch (error) {
@@ -54,7 +56,13 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
     fetchBadges();
 
     window.addEventListener('ordersUpdated', fetchBadges);
-    return () => window.removeEventListener('ordersUpdated', fetchBadges);
+    window.addEventListener('productRequestsUpdated', fetchBadges);
+    window.addEventListener('dispatchesUpdated', fetchBadges);
+    return () => {
+      window.removeEventListener('ordersUpdated', fetchBadges);
+      window.removeEventListener('productRequestsUpdated', fetchBadges);
+      window.removeEventListener('dispatchesUpdated', fetchBadges);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -72,8 +80,9 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
     {
       title: 'OPERATIONS',
       items: [
+        { icon: Building, label: 'Companies', to: '/admin/companies' },
         { icon: Users, label: 'Firms & Buyers', to: '/admin/buyers', badge: badgeCounts.buyers > 0 ? badgeCounts.buyers : null },
-        { icon: Truck, label: 'Dispatches', to: '/admin/dispatches' },
+        { icon: Truck, label: 'Dispatches', to: '/admin/dispatches', badge: badgeCounts.pendingDispatches > 0 ? badgeCounts.pendingDispatches : null },
         { icon: Navigation, label: 'Transporters', to: '/admin/transporters' },
       ]
     },
@@ -82,6 +91,7 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
       items: [
         { icon: Package, label: 'Designs', to: '/admin/designs' },
         { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.pendingOrders > 0 ? badgeCounts.pendingOrders : null },
+        { icon: Zap, label: 'Product Requests', to: '/admin/requests', badge: badgeCounts.pendingRequests > 0 ? badgeCounts.pendingRequests : null },
         { icon: ClipboardList, label: 'Inventory', to: '/admin/inventory' },
       ]
     },
@@ -327,7 +337,7 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
                   <Bell size={24} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-white">All Notifications</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">All Notifications</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400">Your recent updates and alerts</p>
                 </div>
               </div>

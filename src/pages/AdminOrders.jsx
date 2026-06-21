@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi } from '../Action/api';
-import { useSelector } from 'react-redux';
 import { ShoppingCart, Eye, CheckCircle, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, Clock, Search, SlidersHorizontal, User, Calendar, Truck, MessageSquare } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
-import { TextField, MenuItem, InputAdornment } from '@mui/material';
+import { TextField, MenuItem, InputAdornment, Select } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
 import orderCanceledSound from '../assets/order_canceled.mp3';
+import ImageZoom from '../components/ImageZoom';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -57,14 +57,45 @@ const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
   </motion.div>
 );
 
+const getVariantImage = (design, colorName) => {
+  if (!design || !design.image) return '';
+  const imagesList = design.image.split(',').map(img => img.trim()).filter(Boolean);
+  if (imagesList.length === 0) return '';
+
+  if (colorName && design.imageColorMap) {
+    try {
+      const colorMap = typeof design.imageColorMap === 'string'
+        ? JSON.parse(design.imageColorMap)
+        : design.imageColorMap;
+      if (Array.isArray(colorMap)) {
+        const colorIndex = colorMap.findIndex(
+          c => c && c.trim().toLowerCase() === colorName.trim().toLowerCase()
+        );
+        if (colorIndex !== -1 && imagesList[colorIndex]) {
+          return imagesList[colorIndex];
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing imageColorMap', e);
+    }
+  }
+  return imagesList[0] || '';
+};
+
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `http://localhost:5000${path.replace(/\\/g, '/')}`;
+};
+
 const AdminOrders = () => {
-  const { token } = useSelector(state => state.auth);
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [remarks, setRemarks] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
   const navigate = useNavigate();
 
   // Confirm dialog state
@@ -72,28 +103,68 @@ const AdminOrders = () => {
 
   // Filtering states
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('date_desc');
 
-  useEffect(() => {
-    fetchOrders();
-
-    // Listen for socket events to refresh list
-    window.addEventListener('ordersUpdated', fetchOrders);
-    return () => window.removeEventListener('ordersUpdated', fetchOrders);
-  }, []);
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, totalAmount: 0 });
 
   const fetchOrders = async () => {
-    if (orders.length === 0) setLoading(true);
+    setLoading(true);
     try {
-      const res = await getOrdersApi();
+      const params = {
+        page,
+        limit,
+        search: searchTerm || undefined,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        sortBy
+      };
+      const res = await getOrdersApi(params);
       setOrders(res.data.data);
-    } catch (err) {
+      if (res.data.pagination) {
+        setTotal(res.data.pagination.total);
+        setTotalPages(res.data.pagination.totalPages);
+        if (res.data.pagination.stats) {
+          setStats(res.data.pagination.stats);
+        }
+      }
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchOrders();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, searchTerm, statusFilter, sortBy]);
+
+  useEffect(() => {
+    const handleOrdersUpdated = () => {
+      fetchOrders();
+    };
+    window.addEventListener('ordersUpdated', handleOrdersUpdated);
+    return () => window.removeEventListener('ordersUpdated', handleOrdersUpdated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, searchTerm, statusFilter, sortBy]);
 
   const handleUpdateStatus = (orderId, newStatus) => {
     setConfirmDialog({ open: true, orderId, status: newStatus });
@@ -109,6 +180,9 @@ const AdminOrders = () => {
         const audio = new Audio(orderCanceledSound);
         audio.play().catch(e => console.log('Audio playback failed:', e));
       }
+      if (newStatus === 'PROCESSING') {
+        window.dispatchEvent(new Event('dispatchesUpdated'));
+      }
       closeModal();
       setRemarks('');
       fetchOrders();
@@ -123,7 +197,7 @@ const AdminOrders = () => {
       setSelectedOrder(res.data.data);
       setIsModalOpen(true);
       setRemarks('');
-    } catch (err) {
+    } catch {
       toast.error('Failed to load order details');
     }
   };
@@ -153,35 +227,32 @@ const AdminOrders = () => {
   };
 
   // KPIs
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
-  const totalSales = orders.filter(o => o.status === 'COMPLETED' || o.status === 'APPROVED' || o.status === 'PROCESSING').reduce((acc, curr) => acc + curr.grandTotal, 0);
+  const totalOrders = stats.totalOrders;
+  const pendingOrders = stats.pendingOrders;
+  const totalSales = stats.totalAmount;
 
-  // Filtering & Sorting
-  const filteredAndSortedOrders = useMemo(() => {
-    let result = orders.filter(o => {
-      const matchSearch =
-        o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.buyer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.buyer?.code?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filtering & Sorting is done via API
+  const filteredAndSortedOrders = orders;
 
-      const matchStatus = statusFilter === 'ALL' || o.status === statusFilter;
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, page + 2);
 
-      return matchSearch && matchStatus;
-    });
-
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'date_desc': return new Date(b.orderDate) - new Date(a.orderDate);
-        case 'date_asc': return new Date(a.orderDate) - new Date(b.orderDate);
-        case 'amount_desc': return b.grandTotal - a.grandTotal;
-        case 'amount_asc': return a.grandTotal - b.grandTotal;
-        default: return 0;
+      if (start === 1) {
+        end = maxVisible;
+      } else if (end === totalPages) {
+        start = totalPages - maxVisible + 1;
       }
-    });
 
-    return result;
-  }, [orders, searchTerm, statusFilter, sortBy]);
+      for (let i = start; i <= end; i++) pages.push(i);
+    }
+    return pages;
+  };
 
   // Animation variants
   const containerVariants = {
@@ -198,7 +269,7 @@ const AdminOrders = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 mx-auto">
       <div className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
@@ -247,8 +318,8 @@ const AdminOrders = () => {
               fullWidth
               size="small"
               placeholder="Search orders by ID, buyer name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -268,7 +339,7 @@ const AdminOrders = () => {
             size="small"
             label="Order Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           >
             <MenuItem value="ALL">All Statuses</MenuItem>
             <MenuItem value="PENDING">Pending</MenuItem>
@@ -284,7 +355,7 @@ const AdminOrders = () => {
             size="small"
             label="Sort By"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
           >
             <MenuItem value="date_desc">Date (Newest First)</MenuItem>
             <MenuItem value="date_asc">Date (Oldest First)</MenuItem>
@@ -370,6 +441,95 @@ const AdminOrders = () => {
                 ))}
               </motion.tbody>
             </table>
+            {/* Pagination Controls */}
+            {!loading && total > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-slate-200 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                    Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{(page - 1) * limit + 1}</span> to{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {Math.min(page * limit, total)}
+                    </span> of{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{total}</span> orders
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="hidden sm:inline text-slate-300">|</span>
+                    <span>Show</span>
+                    <Select
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      size="small"
+                      sx={{
+                        height: 32,
+                        minWidth: 70,
+                        backgroundColor: 'white',
+                        '.MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(226, 232, 240)',
+                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(203, 213, 225)',
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(99, 102, 241)',
+                        },
+                        color: 'rgb(51, 65, 85)',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        '.dark &': {
+                          backgroundColor: '#1e293b',
+                          color: '#f8fafc',
+                          '.MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#334155',
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#475569',
+                          },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#6366f1',
+                          },
+                        }
+                      }}
+                    >
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={20}>20</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                      <MenuItem value={100}>100</MenuItem>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-dark-border text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${page === p
+                        ? 'bg-primary-600 text-white'
+                        : 'border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg'
+                        }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-dark-border text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -490,13 +650,19 @@ const AdminOrders = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-dark-border">
                         {selectedOrder.items.map(item => {
-                          const isShort = item.quantity > item.design.availableStock;
+                          const isShort = item.design.availableStock < 0;
+                          const variantImage = getVariantImage(item.design, item.color);
+                          const imageUrl = getImageUrl(variantImage);
                           return (
                             <tr key={item.id} className={`${isShort ? 'bg-red-50/30 dark:bg-red-900/5' : 'hover:bg-slate-50/50 dark:hover:bg-dark-bg/50'} transition-colors`}>
                               <td className="p-4 flex items-center">
-                                <div className="w-10 h-10 rounded bg-slate-100 mr-3 flex-shrink-0 overflow-hidden border border-slate-200">
-                                  {item.design.image ? (
-                                    <img src={`http://localhost:5000${item.design.image.split(',')[0].trim().replace(/\\/g, '/')}`} className="w-full h-full object-cover" alt="" />
+                                <div
+                                  className="w-10 h-10 rounded bg-slate-100 mr-3 flex-shrink-0 overflow-hidden border border-slate-200 cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all duration-200"
+                                  onClick={() => imageUrl && setPreviewImage(imageUrl)}
+                                  title="Click to view image"
+                                >
+                                  {variantImage ? (
+                                    <img src={imageUrl} className="w-full h-full object-cover" alt="" />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={20} /></div>
                                   )}
@@ -513,7 +679,7 @@ const AdminOrders = () => {
                               </td>
                               <td className="p-4">
                                 <div className={`inline-flex items-center px-2 py-1 rounded-md border text-xs font-bold ${isShort ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
-                                  {item.design.availableStock} in stock
+                                  {item.design.availableStock} available
                                 </div>
                               </td>
                               <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">₹{formatPrice(item.rate.toFixed(2))}</td>
@@ -525,7 +691,7 @@ const AdminOrders = () => {
                     </table>
                   </div>
 
-                  {selectedOrder.items.some(i => i.quantity > i.design.availableStock) && (
+                  {selectedOrder.items.some(i => i.design.availableStock < 0) && (
                     <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-900/50 flex items-start shadow-sm">
                       <XCircle size={20} className="mr-3 shrink-0 text-red-500" />
                       <div>
@@ -595,11 +761,39 @@ const AdminOrders = () => {
         onConfirm={executeUpdateStatus}
         onCancel={() => setConfirmDialog({ open: false, orderId: null, status: '' })}
         title={confirmDialog.status === 'CANCELLED' ? 'Reject this order?' : 'Approve this order?'}
-        message={confirmDialog.status === 'CANCELLED' ? 'This action will reject the order and notify the buyer. This cannot be undone.' : 'This will approve the order and reserve stock for the buyer and move to dispatches.'}
+        message={confirmDialog.status === 'CANCELLED' ? 'This action will reject the order, return the items to stock, and notify the buyer. This cannot be undone.' : 'This will approve the order and move it to dispatches.'}
         confirmText={confirmDialog.status === 'CANCELLED' ? 'Yes, Reject' : 'Yes, Approve'}
         cancelText="Go Back"
         variant={confirmDialog.status === 'CANCELLED' ? 'danger' : 'success'}
       />
+
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewImage(null)}
+            className="fixed modal_main inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-12 right-0 md:-right-[-120px] z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+              <ImageZoom src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

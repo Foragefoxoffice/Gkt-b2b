@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   TrendingUp, TrendingDown, DollarSign, Package, MoreHorizontal, Calendar, Download,
-  Users, Truck, Layers, Star
+  Users, Truck, Layers, Star, AlertTriangle, X
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
+import toast from 'react-hot-toast';
 import { getAdminDashboardApi } from '../Action/api';
 
 const Sparkline = ({ color, data }) => (
@@ -59,6 +60,7 @@ const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
 const AdminDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const alertedItems = useRef(new Set());
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -75,6 +77,52 @@ const AdminDashboard = () => {
     };
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    if (data && data.kpi && data.kpi.criticalStockItems) {
+      data.kpi.criticalStockItems.forEach(d => {
+        if (!alertedItems.current.has(d.id)) {
+          toast.custom((t) => (
+            <div
+              className={`${t.visible ? 'animate-enter' : 'animate-leave'
+                } max-w-md w-full bg-white dark:bg-dark-card shadow-2xl rounded-2xl border-2 border-red-500 pointer-events-auto flex overflow-hidden`}
+            >
+              <div className="flex-1 w-0 p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 pt-0.5">
+                    <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shadow-inner">
+                      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-md font-black text-red-700 dark:text-red-400">
+                      Critical Stock Alert
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+                      Product <span className="font-bold text-slate-800 dark:text-white">{d.name} ({d.code})</span> is almost out of stock! Only <span className="font-black text-red-600 bg-red-50 dark:bg-red-500/10 px-1.5 py-0.5 rounded">{d.availableStock} units</span> left.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex border-l border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-dark-bg">
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          ), {
+            duration: 8000,
+            position: 'top-right',
+            id: `low-stock-dash-${d.id}`
+          });
+          alertedItems.current.add(d.id);
+        }
+      });
+    }
+  }, [data]);
 
   if (loading) {
     return (
@@ -107,14 +155,14 @@ const AdminDashboard = () => {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here are the latest insights across your active operations.</p>
         </div>
-        <div className="flex items-center space-x-3">
+        {/* <div className="flex items-center space-x-3">
           <button className="flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-all dark:bg-dark-card dark:text-slate-300 dark:border-dark-border dark:hover:bg-dark-border">
             <Calendar size={16} className="mr-2" /> Schedule Report
           </button>
           <button className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-sm shadow-primary-500/30 transition-all">
             <Download size={16} className="mr-2" /> Export Report
           </button>
-        </div>
+        </div> */}
       </div>
 
       {/* KPI Cards Row */}
@@ -276,7 +324,7 @@ const AdminDashboard = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-dark-border" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `₹${v >= 1000 ? v/1000+'k' : v}`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `₹${v >= 1000 ? v / 1000 + 'k' : v}`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
                     formatter={(value) => [`₹${value.toLocaleString()}`, 'Sales']}

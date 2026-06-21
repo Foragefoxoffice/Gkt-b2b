@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getTransportersApi, createTransporterApi, updateTransporterApi, deleteTransporterApi } from '../Action/api';
-import { Plus, Edit2, Trash2, Truck } from 'lucide-react';
+import { getCompaniesApi, createCompanyApi, updateCompanyApi, deleteCompanyApi } from '../Action/api';
+import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { TextField } from '@mui/material';
+import { TextField, MenuItem } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-const TransporterManager = () => {
-  const [transporters, setTransporters] = useState([]);
+const CompanyManager = () => {
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -14,29 +14,34 @@ const TransporterManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', mobile: '', email: '', address: '', gstNumber: ''
+    name: '',
+    status: true
   });
 
   useEffect(() => {
-    fetchTransporters();
+    fetchCompanies();
   }, []);
 
-  const fetchTransporters = async () => {
+  const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await getTransportersApi();
+      const res = await getCompaniesApi();
       if (res.data.success) {
-        setTransporters(res.data.data);
+        setCompanies(res.data.data);
       }
     } catch (err) {
-      toast.error('Failed to fetch transporters');
+      toast.error('Failed to fetch companies');
     } finally {
       setLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: name === 'status' ? value === 'true' || value === true : value
+    });
   };
 
   const openModal = (item = null) => {
@@ -44,13 +49,10 @@ const TransporterManager = () => {
     if (item) {
       setFormData({
         name: item.name || '',
-        mobile: item.mobile || '',
-        email: item.email || '',
-        address: item.address || '',
-        gstNumber: item.gstNumber || ''
+        status: item.status !== undefined ? item.status : true
       });
     } else {
-      setFormData({ name: '', mobile: '', email: '', address: '', gstNumber: '' });
+      setFormData({ name: '', status: true });
     }
     setIsModalOpen(true);
   };
@@ -59,14 +61,14 @@ const TransporterManager = () => {
     e.preventDefault();
     try {
       if (editItem) {
-        await updateTransporterApi(editItem.id, formData);
-        toast.success('Transporter updated successfully');
+        await updateCompanyApi(editItem.id, formData);
+        toast.success('Company updated successfully');
       } else {
-        await createTransporterApi(formData);
-        toast.success('Transporter created successfully');
+        await createCompanyApi(formData);
+        toast.success('Company created successfully');
       }
       setIsModalOpen(false);
-      fetchTransporters();
+      fetchCompanies();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Operation failed');
     }
@@ -80,9 +82,9 @@ const TransporterManager = () => {
     const id = deleteConfirmId;
     setDeleteConfirmId(null);
     try {
-      await deleteTransporterApi(id);
-      toast.success('Transporter deleted successfully');
-      fetchTransporters();
+      await deleteCompanyApi(id);
+      toast.success('Company deleted successfully');
+      fetchCompanies();
     } catch (err) {
       toast.error('Deletion failed');
     }
@@ -91,10 +93,10 @@ const TransporterManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center"><Truck size={24} className="mr-2 dark:text-primary-500 text-primary-600" />Transporter Management</h1>
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center"><Building size={22} className="mr-2 text-primary-600" /> Company Management</h1>
         <button onClick={() => openModal()} className="btn btn-primary flex items-center">
           <Plus size={18} className="mr-2" />
-          Add Transporter
+          Add Company
         </button>
       </div>
 
@@ -102,7 +104,7 @@ const TransporterManager = () => {
       <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-slate-100 dark:border-dark-border overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 dark:border-dark-border flex justify-between items-center bg-slate-50/50 dark:bg-dark-bg/20">
           <h2 className="text-md font-semibold text-slate-800 dark:text-white flex items-center">
-            Registered Transporters
+            Registered Companies
           </h2>
         </div>
 
@@ -117,13 +119,13 @@ const TransporterManager = () => {
               <thead>
                 <tr className="border-b border-slate-100 dark:border-dark-border">
                   <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">
-                    Transporter Details
+                    Company Name
                   </th>
                   <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">
-                    Contact
+                    Status
                   </th>
                   <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">
-                    Address
+                    Created At
                   </th>
                   <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider text-right">
                     Actions
@@ -131,39 +133,33 @@ const TransporterManager = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-dark-border/50">
-                {transporters.length === 0 ? (
+                {companies.length === 0 ? (
                   <tr>
                     <td colSpan="4" className="px-6 py-12 text-center text-slate-400 text-sm">
-                      No transporters found. Click "Add Transporter" to create one.
+                      No companies found. Click "Add Company" to create one.
                     </td>
                   </tr>
                 ) : (
-                  transporters.map((item) => (
+                  companies.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-bg/20 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center font-bold mr-3 overflow-hidden shrink-0">
-                            {item.name.charAt(0).toUpperCase()}
+                            <Building size={16} />
                           </div>
                           <div>
                             <p className="text-md font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {item.email && <span className="text-[12px] text-[#e2148dc4]">{item.email}</span>}
-                              {item.email && item.gstNumber && <span className="text-[10px] text-slate-300">|</span>}
-                              {item.gstNumber && (
-                                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                                  GST: {item.gstNumber}
-                                </span>
-                              )}
-                            </div>
+                            <p className="text-[12px] text-[#e2148dc4] mt-0.5">ID: #{item.id}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
-                        {item.mobile || '-'}
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${item.status ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'}`}>
+                          {item.status ? 'Active' : 'Inactive'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400 max-w-[200px] truncate">
-                        {item.address || '-'}
+                      <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
+                        {new Date(item.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2 transition-opacity">
@@ -189,8 +185,8 @@ const TransporterManager = () => {
         <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 transition-all">
           <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 dark:border-dark-border max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                {editItem ? 'Edit Transporter' : 'Add Transporter'}
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">
+                {editItem ? 'Edit Company' : 'Add Company'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -198,47 +194,26 @@ const TransporterManager = () => {
             </div>
 
             <div className="overflow-y-auto p-6">
-              <form id="transporter-form" onSubmit={handleSubmit} className="space-y-5">
+              <form id="company-form" onSubmit={handleSubmit} className="space-y-5">
                 <TextField
                   required
                   fullWidth
-                  label="Transporter Name"
+                  label="Company Name"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                 />
                 <TextField
-                  required
+                  select
                   fullWidth
-                  label="Mobile Number"
-                  name="mobile"
-                  value={formData.mobile}
+                  label="Status"
+                  name="status"
+                  value={formData.status.toString()}
                   onChange={handleInputChange}
-                />
-                <TextField
-                  fullWidth
-                  type="email"
-                  label="Email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                />
-                <TextField
-                  fullWidth
-                  label="GST No - Transporter ID"
-                  name="gstNumber"
-                  value={formData.gstNumber}
-                  onChange={handleInputChange}
-                />
-                <TextField
-                  fullWidth
-                  label="Address"
-                  name="address"
-                  multiline
-                  rows={3}
-                  value={formData.address}
-                  onChange={handleInputChange}
-                />
+                >
+                  <MenuItem value="true">Active</MenuItem>
+                  <MenuItem value="false">Inactive</MenuItem>
+                </TextField>
               </form>
             </div>
 
@@ -246,8 +221,8 @@ const TransporterManager = () => {
               <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
                 Cancel
               </button>
-              <button type="submit" form="transporter-form" className="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-500 rounded-lg shadow-sm shadow-primary-500/30 transition-all">
-                {editItem ? 'Save Changes' : 'Create Transporter'}
+              <button type="submit" form="company-form" className="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-500 rounded-lg shadow-sm shadow-primary-500/30 transition-all">
+                {editItem ? 'Save Changes' : 'Create Company'}
               </button>
             </div>
           </div>
@@ -258,8 +233,8 @@ const TransporterManager = () => {
         open={!!deleteConfirmId}
         onConfirm={executeDelete}
         onCancel={() => setDeleteConfirmId(null)}
-        title="Delete this transporter?"
-        message="This will permanently remove the transporter from your records. This action cannot be undone."
+        title="Delete this company?"
+        message="This will permanently remove the company from your records. This action cannot be undone."
         confirmText="Yes, Delete"
         cancelText="Cancel"
         variant="danger"
@@ -268,4 +243,4 @@ const TransporterManager = () => {
   );
 };
 
-export default TransporterManager;
+export default CompanyManager;

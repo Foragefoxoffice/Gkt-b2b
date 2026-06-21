@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { getOrdersApi, updateOrderStatusApi, getOrderByIdApi, addToCartApi } from '../Action/api';
-import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Eye, RefreshCw, ShoppingCart, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, AlertCircle, FileText, Search, SlidersHorizontal, Calendar, Truck, MessageSquare, CheckCircle } from 'lucide-react';
+import { Clock, Eye, RefreshCw, ShoppingCart, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, FileText, Search, SlidersHorizontal, Calendar, Truck, MessageSquare, CheckCircle, PackageCheck, Download } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
-import { TextField, MenuItem, InputAdornment } from '@mui/material';
+import { TextField, MenuItem, InputAdornment, Select } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
 import orderCanceledSound from '../assets/order_canceled.mp3';
+import ImageZoom from '../components/ImageZoom';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -57,8 +57,39 @@ const KPICard = ({ title, value, trend, isPositive, sparklineData, color }) => (
   </motion.div>
 );
 
+
+const getVariantImage = (design, colorName) => {
+  if (!design || !design.image) return '';
+  const imagesList = design.image.split(',').map(img => img.trim()).filter(Boolean);
+  if (imagesList.length === 0) return '';
+
+  if (colorName && design.imageColorMap) {
+    try {
+      const colorMap = typeof design.imageColorMap === 'string'
+        ? JSON.parse(design.imageColorMap)
+        : design.imageColorMap;
+      if (Array.isArray(colorMap)) {
+        const colorIndex = colorMap.findIndex(
+          c => c && c.trim().toLowerCase() === colorName.trim().toLowerCase()
+        );
+        if (colorIndex !== -1 && imagesList[colorIndex]) {
+          return imagesList[colorIndex];
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing imageColorMap', e);
+    }
+  }
+  return imagesList[0] || '';
+};
+
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `http://localhost:5000${path.replace(/\\/g, '/')}`;
+};
+
 const BuyerOrders = () => {
-  const { token } = useSelector(state => state.auth);
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
@@ -66,31 +97,72 @@ const BuyerOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Filtering states
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('date_desc');
 
-  useEffect(() => {
-    fetchOrders();
-
-    // Listen for socket events to refresh list
-    window.addEventListener('ordersUpdated', fetchOrders);
-    return () => window.removeEventListener('ordersUpdated', fetchOrders);
-  }, []);
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, totalAmount: 0 });
 
   const fetchOrders = async () => {
-    if (orders.length === 0) setLoading(true);
+    setLoading(true);
     try {
-      const res = await getOrdersApi();
+      const params = {
+        page,
+        limit,
+        search: searchTerm || undefined,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        sortBy
+      };
+      const res = await getOrdersApi(params);
       setOrders(res.data.data);
-    } catch (err) {
+      if (res.data.pagination) {
+        setTotal(res.data.pagination.total);
+        setTotalPages(res.data.pagination.totalPages);
+        if (res.data.pagination.stats) {
+          setStats(res.data.pagination.stats);
+        }
+      }
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchOrders();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, searchTerm, statusFilter, sortBy]);
+
+  useEffect(() => {
+    const handleOrdersUpdated = () => {
+      fetchOrders();
+    };
+    window.addEventListener('ordersUpdated', handleOrdersUpdated);
+    return () => window.removeEventListener('ordersUpdated', handleOrdersUpdated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, searchTerm, statusFilter, sortBy]);
 
   const handleCancelOrder = (orderId) => {
     setConfirmCancelId(orderId);
@@ -116,7 +188,7 @@ const BuyerOrders = () => {
       const res = await getOrderByIdApi(orderId);
       setSelectedOrder(res.data.data);
       setIsModalOpen(true);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load order details');
     }
   };
@@ -136,7 +208,7 @@ const BuyerOrders = () => {
         try {
           await addToCartApi({ designId: item.designId, quantity: item.quantity, color: item.color });
           successCount++;
-        } catch (e) {
+        } catch {
           console.error('Failed to add item', item.designId);
         }
       }
@@ -148,7 +220,7 @@ const BuyerOrders = () => {
       } else {
         toast.error('Could not add any items to cart (they may be out of stock)');
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to repeat order');
     }
   };
@@ -173,30 +245,32 @@ const BuyerOrders = () => {
   };
 
   // Calculate KPIs
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
-  const totalSpend = orders.filter(o => o.status !== 'CANCELLED').reduce((acc, curr) => acc + curr.grandTotal, 0);
+  const totalOrders = stats.totalOrders;
+  const pendingOrders = stats.pendingOrders;
+  const totalSpend = stats.totalAmount;
 
-  // Filtering & Sorting
-  const filteredAndSortedOrders = useMemo(() => {
-    let result = orders.filter(o => {
-      const matchSearch = o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = statusFilter === 'ALL' || o.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
+  // Filtering & Sorting is done via API
+  const filteredAndSortedOrders = orders;
 
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'date_desc': return new Date(b.orderDate) - new Date(a.orderDate);
-        case 'date_asc': return new Date(a.orderDate) - new Date(b.orderDate);
-        case 'amount_desc': return b.grandTotal - a.grandTotal;
-        case 'amount_asc': return a.grandTotal - b.grandTotal;
-        default: return 0;
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, page + 2);
+
+      if (start === 1) {
+        end = maxVisible;
+      } else if (end === totalPages) {
+        start = totalPages - maxVisible + 1;
       }
-    });
 
-    return result;
-  }, [orders, searchTerm, statusFilter, sortBy]);
+      for (let i = start; i <= end; i++) pages.push(i);
+    }
+    return pages;
+  };
 
   // Animation variants
   const containerVariants = {
@@ -213,10 +287,10 @@ const BuyerOrders = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 mx-auto">
       <div className="flex justify-between items-center mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
             <FileText className="mr-3 text-primary-600" /> Order History
           </h1>
           <p className="text-sm text-slate-500 mt-1">Review, track, and manage your past and current orders.</p>
@@ -262,8 +336,8 @@ const BuyerOrders = () => {
               fullWidth
               size="small"
               placeholder="Search orders by ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -283,7 +357,7 @@ const BuyerOrders = () => {
             size="small"
             label="Order Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           >
             <MenuItem value="ALL">All Statuses</MenuItem>
             <MenuItem value="PENDING">Pending</MenuItem>
@@ -299,7 +373,7 @@ const BuyerOrders = () => {
             size="small"
             label="Sort By"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
           >
             <MenuItem value="date_desc">Date (Newest First)</MenuItem>
             <MenuItem value="date_asc">Date (Oldest First)</MenuItem>
@@ -341,7 +415,7 @@ const BuyerOrders = () => {
                 animate="show"
                 className="divide-y divide-slate-100 dark:divide-dark-border"
               >
-                {filteredAndSortedOrders.map((order, index) => (
+                {filteredAndSortedOrders.map((order) => (
                   <motion.tr
                     variants={itemVariants}
                     key={order.id}
@@ -381,6 +455,95 @@ const BuyerOrders = () => {
                 ))}
               </motion.tbody>
             </table>
+            {/* Pagination Controls */}
+            {!loading && total > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-slate-200 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                    Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{(page - 1) * limit + 1}</span> to{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {Math.min(page * limit, total)}
+                    </span> of{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{total}</span> orders
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="hidden sm:inline text-slate-300">|</span>
+                    <span>Show</span>
+                    <Select
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      size="small"
+                      sx={{
+                        height: 32,
+                        minWidth: 70,
+                        backgroundColor: 'white',
+                        '.MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(226, 232, 240)',
+                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(203, 213, 225)',
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgb(99, 102, 241)',
+                        },
+                        color: 'rgb(51, 65, 85)',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        '.dark &': {
+                          backgroundColor: '#1e293b',
+                          color: '#f8fafc',
+                          '.MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#334155',
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#475569',
+                          },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#6366f1',
+                          },
+                        }
+                      }}
+                    >
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={20}>20</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                      <MenuItem value={100}>100</MenuItem>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-dark-border text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${page === p
+                        ? 'bg-primary-600 text-white'
+                        : 'border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg'
+                        }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-dark-border text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-dark-card hover:bg-slate-50 dark:hover:bg-dark-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -470,6 +633,59 @@ const BuyerOrders = () => {
                   </div>
                 )}
 
+                {selectedOrder.dispatches && selectedOrder.dispatches.length > 0 && (
+                  <div className="space-y-4 mb-2">
+                    {selectedOrder.dispatches.map((dispatch) => (
+                      <div key={dispatch.id} className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-900/30">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="text-emerald-500"><PackageCheck size={20} /></div>
+                          <h3 className="text-md font-bold text-emerald-800 dark:text-emerald-300">Dispatch: {dispatch.dispatchNumber}</h3>
+                          <span className={`px-2 py-0.5 ml-auto text-[10px] font-bold uppercase rounded-full border ${dispatch.status === 'DELIVERED'
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400'
+                            }`}>{dispatch.status}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {dispatch.trackingNumber ? (
+                            <div className="bg-white/60 dark:bg-dark-card/50 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Tracking Number / LR</p>
+                              <p className="font-mono font-medium text-slate-800 dark:text-slate-200">{dispatch.trackingNumber}</p>
+                            </div>
+                          ) : (
+                            <div className="bg-white/60 dark:bg-dark-card/50 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30 opacity-60">
+                              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Tracking Number / LR</p>
+                              <p className="font-medium text-slate-400 dark:text-slate-500 italic">Not available</p>
+                            </div>
+                          )}
+
+                          <div className={`p-3 rounded-xl border ${dispatch.bookingCopy ? 'bg-white/60 dark:bg-dark-card/50 border-emerald-100 dark:border-emerald-800/30' : 'bg-transparent border-dashed border-slate-200 dark:border-dark-border opacity-50'}`}>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Booking Copy (LR)</p>
+                            {dispatch.bookingCopy ? (
+                              <a href={getImageUrl(dispatch.bookingCopy)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors">
+                                <FileText size={14} /> View Document
+                              </a>
+                            ) : (
+                              <p className="text-sm text-slate-400 italic">Pending upload</p>
+                            )}
+                          </div>
+
+                          <div className={`p-3 rounded-xl border ${dispatch.invoiceCopy ? 'bg-white/60 dark:bg-dark-card/50 border-emerald-100 dark:border-emerald-800/30' : 'bg-transparent border-dashed border-slate-200 dark:border-dark-border opacity-50'}`}>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Invoice Copy</p>
+                            {dispatch.invoiceCopy ? (
+                              <a href={getImageUrl(dispatch.invoiceCopy)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors">
+                                <FileText size={14} /> View Document
+                              </a>
+                            ) : (
+                              <p className="text-sm text-slate-400 italic">Pending upload</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div>
                   <h3 className="font-semibold text-slate-800 dark:text-white mb-4 text-lg flex items-center">
                     <ShoppingCart size={20} className="mr-2 text-primary-600" /> Items in Order
@@ -485,28 +701,36 @@ const BuyerOrders = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-dark-border">
-                        {selectedOrder.items.map(item => (
-                          <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-bg/50 transition-colors">
-                            <td className="p-4 flex items-center">
-                              <div className="w-10 h-10 rounded bg-slate-100 mr-3 flex-shrink-0 overflow-hidden border border-slate-200">
-                                {item.design.image ? (
-                                  <img src={`http://localhost:5000${item.design.image.split(',')[0].trim().replace(/\\/g, '/')}`} className="w-full h-full object-cover" alt="" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={20} /></div>
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-base">
-                                  {item.design.name} {item.color ? `(${item.color})` : ''}
-                                </p>
-                                <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{item.design.code}</p>
-                              </div>
-                            </td>
-                            <td className="p-4 font-bold text-slate-700 text-base">{item.quantity}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">₹{formatPrice(item.rate.toFixed(2))}</td>
-                            <td className="p-4 text-right font-semibold text-slate-800 dark:text-slate-200 text-base">₹{formatPrice(item.lineTotal.toFixed(2))}</td>
-                          </tr>
-                        ))}
+                        {selectedOrder.items.map(item => {
+                          const variantImage = getVariantImage(item.design, item.color);
+                          const imageUrl = getImageUrl(variantImage);
+                          return (
+                            <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-bg/50 transition-colors">
+                              <td className="p-4 flex items-center">
+                                <div
+                                  className="w-10 h-10 rounded bg-slate-100 mr-3 flex-shrink-0 overflow-hidden border border-slate-200 cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all duration-200"
+                                  onClick={() => imageUrl && setPreviewImage(imageUrl)}
+                                  title="Click to view image"
+                                >
+                                  {variantImage ? (
+                                    <img src={imageUrl} className="w-full h-full object-cover" alt="" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={20} /></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-slate-800 dark:text-slate-200 text-base">
+                                    {item.design.name} {item.color ? `(${item.color})` : ''}
+                                  </p>
+                                  <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{item.design.code}</p>
+                                </div>
+                              </td>
+                              <td className="p-4 font-bold text-slate-700 text-base">{item.quantity}</td>
+                              <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">₹{formatPrice(item.rate.toFixed(2))}</td>
+                              <td className="p-4 text-right font-semibold text-slate-800 dark:text-slate-200 text-base">₹{formatPrice(item.lineTotal.toFixed(2))}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -549,6 +773,34 @@ const BuyerOrders = () => {
         cancelText="Keep Order"
         variant="danger"
       />
+
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewImage(null)}
+            className="fixed modal_main inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-12 right-0 md:-right-[-120px] z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+              <ImageZoom src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

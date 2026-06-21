@@ -4,6 +4,7 @@ import { Search, Filter, ArrowRight, Sparkles, Image as ImageIcon, ChevronLeft, 
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import ImageZoom from '../components/ImageZoom';
 
 const DesignCatalog = () => {
   const navigate = useNavigate();
@@ -261,7 +262,7 @@ const DesignCatalog = () => {
                   return (
                     <>
                       {images.length > 0 && (
-                        <img
+                        <ImageZoom
                           src={images[currentSlideIndex]}
                           alt={selectedImage.name}
                           className="max-w-full max-h-[50vh] md:max-h-[85vh] object-contain drop-shadow-2xl transition-opacity duration-300"

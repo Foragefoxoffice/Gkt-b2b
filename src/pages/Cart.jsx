@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi } from '../Action/api';
+import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi, createProductRequestApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ArrowRight, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import orderPlacedSound from '../assets/order_placed.mp3';
 import TruckButton from '../components/TruckButton';
 import { Select, MenuItem, TextField } from '@mui/material';
+import ImageZoom from '../components/ImageZoom';
+import { AlertTriangle } from 'lucide-react';
 
 const Cart = () => {
   const { token } = useSelector(state => state.auth);
@@ -38,16 +40,19 @@ const Cart = () => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestRemarks, setRequestRemarks] = useState('');
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
   const getColorImage = (design, color) => {
     if (!design || !color) return null;
 
     const imagesArray = design.image ? design.image.split(',').map(s => s.trim()) : [];
-    
+
     try {
       if (design.imageColorMap) {
         const parsedMap = typeof design.imageColorMap === 'string' ? JSON.parse(design.imageColorMap) : design.imageColorMap;
-        
+
         if (Array.isArray(parsedMap)) {
           const idx = parsedMap.findIndex(c => c === color);
           if (idx !== -1 && imagesArray[idx]) {
@@ -67,6 +72,19 @@ const Cart = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      if (!isCheckingOut) {
+        fetchData();
+      }
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+    };
+  }, [isCheckingOut]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -107,7 +125,7 @@ const Cart = () => {
     if (newQty < 1) return;
 
     const max = getMaxQuantity(item);
-    if (newQty > max) {
+    if (max > 0 && newQty > max) {
       toast.error('Maximum available stock reached');
       return;
     }
@@ -131,10 +149,30 @@ const Cart = () => {
     }
   };
 
+  // Check if any cart items are out of stock
+  const hasOutOfStockItems = useMemo(() => {
+    if (!cartData || !cartData.items) return false;
+    return cartData.items.some(item => getMaxQuantity(item) === 0);
+  }, [cartData]);
+
+  const outOfStockItemNames = useMemo(() => {
+    if (!cartData || !cartData.items) return [];
+    return cartData.items
+      .filter(item => getMaxQuantity(item) === 0)
+      .map(item => `${item.design?.name || 'Unknown'}${item.color ? ` (${item.color})` : ''}`);
+  }, [cartData]);
+
   const handleCheckout = async () => {
     if (!cartData || cartData.items.length === 0) {
       toast.error('Cart is empty');
       return Promise.reject('empty');
+    }
+
+    // Block checkout if any items are out of stock
+    if (hasOutOfStockItems) {
+      toast.error('Some items are out of stock. Please submit a Production Request instead.');
+      setShowRequestModal(true);
+      return Promise.reject('out_of_stock');
     }
 
     setIsCheckingOut(true);
@@ -152,7 +190,13 @@ const Cart = () => {
       window.dispatchEvent(new Event('ordersUpdated'));
       return Promise.resolve();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      const errMsg = err.response?.data?.message || '';
+      if (errMsg.includes('Insufficient stock') || errMsg.includes('stock')) {
+        toast.error(errMsg);
+        setShowRequestModal(true);
+      } else {
+        toast.error(errMsg || 'Failed to place order');
+      }
       setIsCheckingOut(false);
       return Promise.reject(err);
     }
@@ -178,7 +222,7 @@ const Cart = () => {
   const isEmpty = !cartData || !cartData.items || cartData.items.length === 0;
 
   return (
-    <div className="max-w-7xl mx-auto pb-16 px-4 sm:px-6 lg:px-8">
+    <div className="mx-auto pb-16 px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl sm:text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
@@ -236,10 +280,10 @@ const Cart = () => {
                   >
                     <div className="w-full sm:w-32 h-32 bg-slate-100 dark:bg-dark-bg rounded-2xl overflow-hidden shrink-0 border border-slate-200/50 dark:border-dark-border">
                       {group.design.image ? (
-                        <img 
-                          src={getImageUrl(group.design.image.split(',')[0].trim())} 
-                          alt={group.design.name} 
-                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                        <img
+                          src={getImageUrl(group.design.image.split(',')[0].trim())}
+                          alt={group.design.name}
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                           onClick={() => setSelectedImage(getImageUrl(group.design.image.split(',')[0].trim()))}
                         />
                       ) : (
@@ -274,7 +318,7 @@ const Cart = () => {
                                     const colorImg = getColorImage(group.design, item.color);
                                     if (colorImg) {
                                       return (
-                                        <div 
+                                        <div
                                           className="w-20 h-20 rounded bg-white overflow-hidden border border-slate-200 dark:border-dark-border shadow-sm shrink-0 cursor-pointer hover:shadow-md transition-shadow"
                                           onClick={() => setSelectedImage(colorImg)}
                                         >
@@ -285,9 +329,21 @@ const Cart = () => {
                                     return <div className="w-4 h-4 rounded-full border border-slate-300 shadow-sm shrink-0" style={{ backgroundColor: item.color.toLowerCase() }}></div>;
                                   })()}
                                   <span className="font-semibold">{item.color}</span>
+                                  {getMaxQuantity(item) === 0 && (
+                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/30 ml-2">
+                                      Request Production
+                                    </span>
+                                  )}
                                 </span>
                               ) : (
-                                <span className="text-sm font-medium text-slate-500 italic">Default Color</span>
+                                <span className="text-sm font-medium text-slate-500 italic">
+                                  Default Color
+                                  {getMaxQuantity(item) === 0 && (
+                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/30 ml-2">
+                                      Request Production
+                                    </span>
+                                  )}
+                                </span>
                               )}
                             </div>
 
@@ -303,8 +359,8 @@ const Cart = () => {
                                 <div className="w-10 text-center font-semibold text-sm text-slate-800 dark:text-white">{item.quantity}</div>
                                 <button
                                   onClick={() => handleUpdateQuantity(item, 1)}
-                                  className={`px-3 h-full flex items-center transition-colors ${item.quantity >= getMaxQuantity(item) ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                                  disabled={item.quantity >= getMaxQuantity(item)}
+                                  className={`px-3 h-full flex items-center transition-colors ${(getMaxQuantity(item) > 0 && item.quantity >= getMaxQuantity(item)) ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-slate-500 hover:text-primary-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                  disabled={getMaxQuantity(item) > 0 && item.quantity >= getMaxQuantity(item)}
                                 >
                                   <Plus size={14} />
                                 </button>
@@ -405,7 +461,11 @@ const Cart = () => {
                     className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
                   >
                     <MenuItem value="default">Buyer will arrange / Decide later</MenuItem>
-                    {transporters.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+                    {transporters.map(t => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.name} {t.gstNumber ? `(GST: ${t.gstNumber})` : ''}
+                      </MenuItem>
+                    ))}
                     <MenuItem value="other">Other (Specify Below)</MenuItem>
                   </Select>
                 </div>
@@ -458,12 +518,33 @@ const Cart = () => {
                 </div>
               </div>
 
-              {/* Checkout Button */}
+              {/* Checkout / Request Production Buttons */}
               <div className="mt-8">
-                <TruckButton
-                  apiCall={handleCheckout}
-                  onComplete={handleAnimationComplete}
-                />
+                {hasOutOfStockItems ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl">
+                      <AlertTriangle size={20} className="text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Out of Stock Items</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                          {outOfStockItemNames.join(', ')} {outOfStockItemNames.length === 1 ? 'is' : 'are'} currently out of stock. Submit a production request to notify the admin.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowRequestModal(true)}
+                      className="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl shadow-sm shadow-amber-500/30 transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5"
+                    >
+                      <Zap size={20} />
+                      Request Production
+                    </button>
+                  </div>
+                ) : (
+                  <TruckButton
+                    apiCall={handleCheckout}
+                    onComplete={handleAnimationComplete}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -490,13 +571,117 @@ const Cart = () => {
             >
               <button
                 onClick={() => setSelectedImage(null)}
-                className="absolute -top-12 right-0 md:-right-12 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+                className="absolute -top-12 right-0 md:-right-[-120px] z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
-              <img src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+              <ImageZoom src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Production Request Modal */}
+      <AnimatePresence>
+        {showRequestModal && (
+          <div className="fixed modal_main inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              onClick={() => setShowRequestModal(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative bg-white dark:bg-dark-card rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-slate-100 dark:border-dark-border"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl">
+                  <ShoppingCart size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-800 dark:text-white">Submit Production Request</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Request custom weaving for out-of-stock items</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                  Some items in your cart do not have enough stock. You can submit a production request to notify the administrator. Please fill in any specific instructions or requirements (e.g. quantity adjustments, delivery dates):
+                </p>
+
+                <div className="max-h-40 overflow-y-auto mb-4 border border-slate-100 dark:border-dark-border/50 rounded-xl divide-y divide-slate-50 dark:divide-dark-border/50 p-2">
+                  {cartData?.items.map(item => (
+                    <div key={item.id} className="flex justify-between items-center py-2 text-xs">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        {item.design?.name} ({item.color || 'Default Color'})
+                      </span>
+                      <span className="text-slate-500">
+                        Requested: {item.quantity} units
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="block text-sm font-semibold text-[#e2148d] mb-2">
+                  Needed Product Details & Remarks
+                </label>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={4}
+                  value={requestRemarks}
+                  onChange={(e) => setRequestRemarks(e.target.value)}
+                  placeholder="Enter details of color variations, specifications, or preferred loom timeline..."
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '0.75rem',
+                      '& fieldset': { borderColor: '#e2e8f0' },
+                      '&:hover fieldset': { borderColor: '#cbd5e1' },
+                      '&.Mui-focused fieldset': { borderColor: '#d97706', borderWidth: '2px' },
+                    }
+                  }}
+                  className="bg-slate-50 dark:bg-dark-bg text-slate-700 dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRequestModal(false)}
+                  className="flex-1 px-4 py-3 border border-slate-200 dark:border-dark-border text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingRequest}
+                  onClick={async () => {
+                    setIsSubmittingRequest(true);
+                    try {
+                      await createProductRequestApi({ remarks: requestRemarks });
+                      toast.success('Production request submitted successfully');
+                      setShowRequestModal(false);
+                      window.dispatchEvent(new Event('cartUpdated'));
+                      navigate('/buyer/orders');
+                    } catch (err) {
+                      toast.error(err.response?.data?.message || 'Failed to submit request');
+                    } finally {
+                      setIsSubmittingRequest(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-sm transition-all font-medium disabled:opacity-50"
+                >
+                  {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

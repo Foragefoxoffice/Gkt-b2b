@@ -15,9 +15,12 @@ import BuyerDashboard from './pages/BuyerDashboard.jsx';
 import FirmBuyerManager from './pages/FirmBuyerManager.jsx';
 import DesignManager from './pages/DesignManager.jsx';
 import AdminOrders from './pages/AdminOrders.jsx';
+import AdminRequests from './pages/AdminRequests.jsx';
 import InventoryDashboard from './pages/InventoryDashboard.jsx';
 import DispatchManager from './pages/DispatchManager.jsx';
 import TransporterManager from './pages/TransporterManager.jsx';
+import Company from './pages/Company.jsx';
+import AdminSettings from './pages/AdminSettings.jsx';
 
 import DesignCatalog from './pages/DesignCatalog.jsx';
 import Cart from './pages/Cart.jsx';
@@ -68,11 +71,14 @@ function App() {
           }>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/buyers" element={<FirmBuyerManager />} />
+            <Route path="/admin/companies" element={<Company />} />
             <Route path="/admin/designs" element={<DesignManager />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/requests" element={<AdminRequests />} />
             <Route path="/admin/inventory" element={<InventoryDashboard />} />
             <Route path="/admin/dispatches" element={<DispatchManager />} />
             <Route path="/admin/transporters" element={<TransporterManager />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
 
           <Route element={

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFirmsApi, createFirmApi, updateFirmApi, deleteFirmApi, getBuyersApi, createBuyerApi, updateBuyerApi, deleteBuyerApi } from '../Action/api';
+import { getFirmsApi, createFirmApi, updateFirmApi, deleteFirmApi, getBuyersApi, createBuyerApi, updateBuyerApi, deleteBuyerApi, getCompaniesApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { Plus, Edit2, Trash2, Building, Users, MoreHorizontal, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -12,6 +12,7 @@ const FirmBuyerManager = () => {
   const [activeTab, setActiveTab] = useState('firms'); // 'firms' or 'buyers'
   const [firms, setFirms] = useState([]);
   const [buyers, setBuyers] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form State
@@ -38,8 +39,12 @@ const FirmBuyerManager = () => {
     setLoading(true);
     try {
       if (activeTab === 'firms') {
-        const res = await getFirmsApi();
-        setFirms(res.data.data);
+        const [firmsRes, companiesRes] = await Promise.all([
+          getFirmsApi(),
+          getCompaniesApi()
+        ]);
+        setFirms(firmsRes.data.data);
+        setCompanies(companiesRes.data.data);
       } else {
         const [buyerRes, firmRes] = await Promise.all([
           getBuyersApi(),
@@ -81,9 +86,9 @@ const FirmBuyerManager = () => {
       }
     } else {
       setFormData(activeTab === 'firms' ? {
-        name: '', code: '', address: '', gstNumber: '', panNumber: '', mobile: '', mobile2: '', email: '', stateCode: '', website: '', logo: ''
+        name: '', code: '', address: '', gstNumber: '', panNumber: '', mobile: '', mobile2: '', email: '', stateCode: '', website: '', logo: '', companyId: ''
       } : {
-        name: '', code: '', firmId: '', mobile: '', mobile2: '', email: '', gst: '', pan: '', stateCode: '', branchName: '', billingAddress: '', shippingAddress: '', password: ''
+        name: '', code: '', firmId: '', mobile: '', mobile2: '', email: '', gst: '', pan: '', stateCode: '', branchName: '', billingAddress: '', shippingAddress: ''
       });
       setLogoPreviewUrl(null);
     }
@@ -139,7 +144,7 @@ const FirmBuyerManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Firm & Buyer Management</h1>
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center"><Building size={22} className="mr-2 text-primary-600" /> Firm & Buyer Management</h1>
         <button onClick={() => openModal()} className="btn btn-primary flex items-center">
           <Plus size={18} className="mr-2" />
           Add {activeTab === 'firms' ? 'Firm' : 'Buyer'}
@@ -199,6 +204,7 @@ const FirmBuyerManager = () => {
                   </th>
                   {activeTab === 'firms' ? (
                     <>
+                      <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">Company</th>
                       <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">GST Number</th>
                       <th className="px-6 py-4 text-[12px] font-semibold text-primary uppercase tracking-wider">Contact</th>
                     </>
@@ -215,7 +221,7 @@ const FirmBuyerManager = () => {
               <tbody className="divide-y divide-slate-50 dark:divide-dark-border/50">
                 {(activeTab === 'firms' ? firms : buyers).length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-slate-400 text-sm">
+                    <td colSpan="6" className="px-6 py-12 text-center text-slate-400 text-sm">
                       No records found. Click "Add" to create one.
                     </td>
                   </tr>
@@ -239,6 +245,7 @@ const FirmBuyerManager = () => {
                               </div>
                             </div>
                           </td>
+                          <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{item.company?.name || '-'}</td>
                           <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{item.gstNumber || '-'}</td>
                           <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{item.mobile || '-'}</td>
                         </>
@@ -317,7 +324,15 @@ const FirmBuyerManager = () => {
                       <TextField label="Cell No 2" value={formData.mobile2} onChange={e => setFormData({ ...formData, mobile2: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-2 gap-5">
+                      <TextField select required label="Select Company" value={formData.companyId || ''} onChange={e => setFormData({ ...formData, companyId: e.target.value })}>
+                        <MenuItem value=""><em>Select a Company</em></MenuItem>
+                        {companies.map(c => (
+                          <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                        ))}
+                      </TextField>
                       <TextField label="Website" value={formData.website} onChange={e => setFormData({ ...formData, website: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-5">
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Logo</label>
                         <div className="flex items-center gap-4">
@@ -329,8 +344,8 @@ const FirmBuyerManager = () => {
                           <input type="file" accept="image/*" onChange={handleLogoChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100 flex-1" />
                         </div>
                       </div>
+                      <TextField label="Address" multiline rows={2} value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
                     </div>
-                    <TextField label="Address" multiline rows={2} value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
                   </>
                 ) : (
                   <>
@@ -363,24 +378,6 @@ const FirmBuyerManager = () => {
                       <TextField label="Billing Address" multiline rows={2} value={formData.billingAddress} onChange={e => setFormData({ ...formData, billingAddress: e.target.value })} />
                       <TextField label="Shipping Address" multiline rows={2} value={formData.shippingAddress} onChange={e => setFormData({ ...formData, shippingAddress: e.target.value })} />
                     </div>
-                    {!editItem && (
-                      <TextField
-                        required={!editItem}
-                        type={showPassword ? "text" : "password"}
-                        label="Password (Login)"
-                        value={formData.password}
-                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                              </IconButton>
-                            </InputAdornment>
-                          )
-                        }}
-                      />
-                    )}
                   </>
                 )}
               </form>

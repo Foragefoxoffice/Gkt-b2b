@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDispatchesApi, getOrdersApi, getTransportersApi, createDispatchApi, updateDispatchStatusApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck } from 'lucide-react';
+import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
-import TruckButton from '../components/TruckButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import orderPlacedSound from '../assets/order_placed.mp3';
 
 const DispatchManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -25,12 +23,17 @@ const DispatchManager = () => {
   const [formData, setFormData] = useState({
     orderId: '',
     transporterId: '',
-    numberOfBundles: '',
-    trackingNumber: ''
+    numberOfBundles: ''
   });
-  const [files, setFiles] = useState({ bookingCopy: null, invoiceCopy: null });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, dispatchId: null, status: '' });
+
+  // Delivery modal state
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryDispatchId, setDeliveryDispatchId] = useState(null);
+  const [deliveryForm, setDeliveryForm] = useState({ trackingNumber: '' });
+  const [deliveryFiles, setDeliveryFiles] = useState({ bookingCopy: null, invoiceCopy: null });
+  const [isDelivering, setIsDelivering] = useState(false);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -42,13 +45,21 @@ const DispatchManager = () => {
   useEffect(() => {
     fetchDispatches();
     fetchOptions();
+  }, []);
 
-    // Listen for socket events to refresh list
-    window.addEventListener('dispatchesUpdated', fetchDispatches);
-    window.addEventListener('ordersUpdated', fetchOptions);
+  useEffect(() => {
+    const handleDispatchesUpdated = () => {
+      fetchDispatches();
+    };
+    const handleOrdersUpdated = () => {
+      fetchOptions();
+    };
+
+    window.addEventListener('dispatchesUpdated', handleDispatchesUpdated);
+    window.addEventListener('ordersUpdated', handleOrdersUpdated);
     return () => {
-      window.removeEventListener('dispatchesUpdated', fetchDispatches);
-      window.removeEventListener('ordersUpdated', fetchOptions);
+      window.removeEventListener('dispatchesUpdated', handleDispatchesUpdated);
+      window.removeEventListener('ordersUpdated', handleOrdersUpdated);
     };
   }, []);
 
@@ -94,9 +105,7 @@ const DispatchManager = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    setFiles({ ...files, [e.target.name]: e.target.files[0] });
-  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,17 +117,15 @@ const DispatchManager = () => {
     try {
       const form = new FormData();
       Object.keys(formData).forEach(key => form.append(key, formData[key]));
-      if (files.bookingCopy) form.append('bookingCopy', files.bookingCopy);
-      if (files.invoiceCopy) form.append('invoiceCopy', files.invoiceCopy);
 
       await createDispatchApi(form);
 
       toast.success('Dispatch created successfully');
       setIsModalOpen(false);
-      setFormData({ orderId: '', transporterId: '', numberOfBundles: '', trackingNumber: '' });
-      setFiles({ bookingCopy: null, invoiceCopy: null });
+      setFormData({ orderId: '', transporterId: '', numberOfBundles: '' });
       fetchDispatches();
       fetchOptions(); // Refresh approved orders
+      window.dispatchEvent(new Event('dispatchesUpdated'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create dispatch');
     } finally {
@@ -130,24 +137,33 @@ const DispatchManager = () => {
     setConfirmDialog({ open: true, dispatchId, status: newStatus });
   };
 
-  const handleMarkDeliveredApi = async (dispatchId) => {
-    try {
-      await updateDispatchStatusApi(dispatchId, { status: 'DELIVERED' });
-      return Promise.resolve();
-    } catch (err) {
-      toast.error('Failed to update status');
-      return Promise.reject(err);
-    }
+  const openDeliveryModal = (dispatchId) => {
+    setDeliveryDispatchId(dispatchId);
+    setDeliveryForm({ trackingNumber: '' });
+    setDeliveryFiles({ bookingCopy: null, invoiceCopy: null });
+    setShowDeliveryModal(true);
   };
 
-  const onMarkDeliveredAnimationComplete = () => {
-    const audio = new Audio(orderPlacedSound);
-    audio.play().catch(e => console.log('Audio playback failed:', e));
-    fetchDispatches();
-    setShowSuccessModal(true);
-    setTimeout(() => {
-      setShowSuccessModal(false);
-    }, 3500);
+  const handleDeliverySubmit = async () => {
+    setIsDelivering(true);
+    try {
+      const form = new FormData();
+      form.append('status', 'DELIVERED');
+      if (deliveryForm.trackingNumber) form.append('trackingNumber', deliveryForm.trackingNumber);
+      if (deliveryFiles.bookingCopy) form.append('bookingCopy', deliveryFiles.bookingCopy);
+      if (deliveryFiles.invoiceCopy) form.append('invoiceCopy', deliveryFiles.invoiceCopy);
+
+      await updateDispatchStatusApi(deliveryDispatchId, form);
+      toast.success('Dispatch marked as delivered!');
+      setShowDeliveryModal(false);
+      fetchDispatches();
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 3500);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to mark as delivered');
+    } finally {
+      setIsDelivering(false);
+    }
   };
 
   const executeUpdateStatus = async () => {
@@ -188,7 +204,7 @@ const DispatchManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
           <Truck className="mr-3 text-primary-600" /> Dispatch Management
         </h1>
         <button onClick={() => setIsModalOpen(true)} className="btn btn-primary flex items-center">
@@ -306,15 +322,13 @@ const DispatchManager = () => {
                           </button>
                         )}
                         {dispatch.status === 'DISPATCHED' && (
-                          <div className="transform scale-[0.9] origin-right w-[180px] mt-3">
-                            <TruckButton
-                              apiCall={() => handleMarkDeliveredApi(dispatch.id)}
-                              onComplete={onMarkDeliveredAnimationComplete}
-                              defaultText="Mark as Delivered"
-                              successText="Delivered"
-                              style={{ '--background': '#16a34a' }}
-                            />
-                          </div>
+                          <button
+                            onClick={() => openDeliveryModal(dispatch.id)}
+                            className="btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg shadow-sm shadow-emerald-500/30 transition-all hover:-translate-y-0.5 flex items-center gap-1.5"
+                          >
+                            <PackageCheck size={16} />
+                            Good Tracking Details
+                          </button>
                         )}
                       </div>
                     </td>
@@ -427,35 +441,16 @@ const DispatchManager = () => {
                 })()}
               </TextField>
 
-              <div className="grid grid-cols-2 gap-5">
-                <TextField
-                  type="number"
-                  required
-                  label="No. of Bundles"
-                  name="numberOfBundles"
-                  value={formData.numberOfBundles}
-                  onChange={handleInputChange}
-                  inputProps={{ min: 1 }}
-                  placeholder="e.g., 5"
-                />
-                <TextField
-                  label="Tracking Number"
-                  name="trackingNumber"
-                  value={formData.trackingNumber}
-                  onChange={handleInputChange}
-                  placeholder="LR Number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Booking Copy (LR)</label>
-                <input type="file" name="bookingCopy" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Invoice Copy</label>
-                <input type="file" name="invoiceCopy" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100" />
-              </div>
+              <TextField
+                type="number"
+                required
+                label="No. of Bundles"
+                name="numberOfBundles"
+                value={formData.numberOfBundles}
+                onChange={handleInputChange}
+                inputProps={{ min: 1 }}
+                placeholder="e.g., 5"
+              />
 
               <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-slate-100 dark:border-dark-border">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
@@ -474,12 +469,99 @@ const DispatchManager = () => {
         open={confirmDialog.open}
         onConfirm={executeUpdateStatus}
         onCancel={() => setConfirmDialog({ open: false, dispatchId: null, status: '' })}
-        title={confirmDialog.status === 'DISPATCHED' ? 'Mark as Dispatched?' : 'Mark as Delivered?'}
-        message={confirmDialog.status === 'DISPATCHED' ? 'This will update the dispatch status to dispatched and notify relevant parties.' : 'This will mark the dispatch as delivered and complete the shipment.'}
-        confirmText={confirmDialog.status === 'DISPATCHED' ? 'Yes, Mark Dispatched' : 'Yes, Mark Delivered'}
+        title={'Mark as Dispatched?'}
+        message={'This will update the dispatch status to dispatched and notify relevant parties.'}
+        confirmText={'Yes, Mark Dispatched'}
         cancelText="Cancel"
-        variant={confirmDialog.status === 'DISPATCHED' ? 'info' : 'success'}
+        variant={'info'}
       />
+
+      {/* Mark as Delivered Modal */}
+      <AnimatePresence>
+        {showDeliveryModal && (
+          <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 dark:border-dark-border"
+            >
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <PackageCheck size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Good Tracking Details</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Add delivery details before completing</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDeliveryModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <TextField
+                  fullWidth
+                  label="Tracking Number"
+                  value={deliveryForm.trackingNumber}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, trackingNumber: e.target.value })}
+                  placeholder="Enter LR / Tracking Number"
+                />
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Booking Copy (LR)</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      onChange={(e) => setDeliveryFiles({ ...deliveryFiles, bookingCopy: e.target.files[0] })}
+                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100 dark:file:bg-emerald-900/20 dark:file:text-emerald-400"
+                    />
+                    {deliveryFiles.bookingCopy && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 block">✓ {deliveryFiles.bookingCopy.name}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Invoice Copy</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      onChange={(e) => setDeliveryFiles({ ...deliveryFiles, invoiceCopy: e.target.files[0] })}
+                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100 dark:file:bg-emerald-900/20 dark:file:text-emerald-400"
+                    />
+                    {deliveryFiles.invoiceCopy && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 block">✓ {deliveryFiles.invoiceCopy.name}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 px-6 py-4 border-t border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20">
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(false)}
+                  className="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDelivering}
+                  onClick={handleDeliverySubmit}
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm shadow-emerald-500/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                >
+                  <PackageCheck size={18} />
+                  {isDelivering ? 'Submitting...' : 'Confirm Delivery'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Success Modal */}
       <AnimatePresence>

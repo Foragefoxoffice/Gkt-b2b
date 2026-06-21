@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCategoriesApi, createCategoryApi, updateCategoryApi, deleteCategoryApi, getWeaversApi, createWeaverApi, updateWeaverApi, deleteWeaverApi, assignDesignToLoomApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
-import { TextField, MenuItem, Autocomplete, Chip, InputAdornment } from '@mui/material';
+import { TextField, MenuItem, InputAdornment, Tooltip } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ImageZoom from '../components/ImageZoom';
 
 const DesignManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -15,6 +16,55 @@ const DesignManager = () => {
   const [categories, setCategories] = useState([]);
   const [weavers, setWeavers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const alertedDesigns = useRef(new Set());
+
+  useEffect(() => {
+    if (activeTab === 'designs' && designs.length > 0) {
+      const lowStockDesigns = designs.filter(d => (parseInt(d.availableStock) || 0) < 5);
+
+      lowStockDesigns.forEach(d => {
+        if (!alertedDesigns.current.has(d.id)) {
+          toast.custom((t) => (
+            <div
+              className={`${t.visible ? 'animate-enter' : 'animate-leave'
+                } max-w-md w-full bg-white dark:bg-dark-card shadow-2xl rounded-2xl border-2 border-red-500 pointer-events-auto flex overflow-hidden`}
+            >
+              <div className="flex-1 w-0 p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 pt-0.5">
+                    <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shadow-inner">
+                      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-md font-black text-red-700 dark:text-red-400">
+                      Critical Stock Alert
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+                      Product <span className="font-bold text-slate-800 dark:text-white">{d.name} ({d.code})</span> is almost out of stock! Only <span className="font-black text-red-600 bg-red-50 dark:bg-red-500/10 px-1.5 py-0.5 rounded">{d.availableStock} units</span> left.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex border-l border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-dark-bg">
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          ), {
+            duration: 8000,
+            position: 'top-right',
+            id: `low-stock-${d.id}`
+          });
+          alertedDesigns.current.add(d.id);
+        }
+      });
+    }
+  }, [designs, activeTab]);
 
   const Sparkline = ({ color, data }) => (
     <div className="h-10 w-24">
@@ -146,18 +196,15 @@ const DesignManager = () => {
   const [editItem, setEditItem] = useState(null);
 
   const [formData, setFormData] = useState({});
-  const [imageFiles, setImageFiles] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
-  const [imageColors, setImageColors] = useState([]);
-  const [existingImages, setExistingImages] = useState([]);
-  const [existingImageColors, setExistingImageColors] = useState([]);
+  const [combinedImages, setCombinedImages] = useState([]);
+  const [draggedImgIndex, setDraggedImgIndex] = useState(null);
+  const [draggedOverIndex, setDraggedOverIndex] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
 
   const computedColors = useMemo(() => {
-    return Array.from(new Set([...existingImageColors, ...imageColors]))
-      .map(c => c ? c.trim() : '')
+    return Array.from(new Set(combinedImages.map(img => img.color).map(c => c ? c.trim() : '')))
       .filter(Boolean);
-  }, [existingImageColors, imageColors]);
+  }, [combinedImages]);
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewItem, setViewItem] = useState(null);
@@ -178,6 +225,27 @@ const DesignManager = () => {
     if (!path) return '';
     const cleanPath = path.replace(/\\/g, '/');
     return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  };
+
+  const getVariantImage = (dv) => {
+    if (!dv.image) return null;
+    const imagesList = dv.image.split(',').map(img => img.trim()).filter(Boolean);
+    if (imagesList.length === 0) return null;
+
+    if (dv._color && dv.imageColorMap) {
+      try {
+        const colorMap = JSON.parse(dv.imageColorMap);
+        if (Array.isArray(colorMap)) {
+          const colorIndex = colorMap.findIndex(
+            c => c && c.trim().toLowerCase() === dv._color.trim().toLowerCase()
+          );
+          if (colorIndex !== -1 && imagesList[colorIndex]) {
+            return imagesList[colorIndex];
+          }
+        }
+      } catch (e) { }
+    }
+    return imagesList[0];
   };
 
   useEffect(() => {
@@ -207,8 +275,12 @@ const DesignManager = () => {
         const res = await getCategoriesApi();
         setCategories(res.data.data);
       } else {
-        const res = await getWeaversApi();
-        setWeavers(res.data.data);
+        const [wRes, dRes] = await Promise.all([
+          getWeaversApi(),
+          getDesignsApi()
+        ]);
+        setWeavers(wRes.data.data);
+        setDesigns(dRes.data.data);
       }
     } catch (err) {
       toast.error('Failed to fetch data');
@@ -244,35 +316,79 @@ const DesignManager = () => {
       return true;
     });
 
-    setImageFiles(prev => [...prev, ...validFiles]);
-    const newPreviews = validFiles.map(f => URL.createObjectURL(f));
-    setPreviewUrls(prev => [...prev, ...newPreviews]);
-    setImageColors(prev => [...prev, ...validFiles.map(() => '')]);
+    const newImages = validFiles.map((file, idx) => ({
+      id: `new-${idx}-${Date.now()}`,
+      type: 'new',
+      file,
+      url: URL.createObjectURL(file),
+      color: ''
+    }));
+
+    setCombinedImages(prev => [...prev, ...newImages]);
     e.target.value = '';
   };
 
-  const removeNewImage = (index) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-    setImageColors(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => {
-      const newUrls = [...prev];
-      URL.revokeObjectURL(newUrls[index]);
-      return newUrls.filter((_, i) => i !== index);
+  const removeImage = (index) => {
+    setCombinedImages(prev => {
+      const newImages = [...prev];
+      if (newImages[index].type === 'new') {
+        URL.revokeObjectURL(newImages[index].url);
+      }
+      newImages.splice(index, 1);
+      return newImages;
     });
   };
 
-  const removeExistingImage = (index) => {
-    setExistingImages(prev => prev.filter((_, i) => i !== index));
-    setExistingImageColors(prev => prev.filter((_, i) => i !== index));
+  const handleDragStart = (e, index) => {
+    setDraggedImgIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnter = (e, index) => {
+    e.preventDefault();
+    if (draggedImgIndex !== null && draggedImgIndex !== index) {
+      setDraggedOverIndex(index);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDragLeave = (e, index) => {
+    if (draggedOverIndex === index) {
+      setDraggedOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (draggedImgIndex === null || draggedImgIndex === index) {
+      setDraggedImgIndex(null);
+      setDraggedOverIndex(null);
+      return;
+    }
+
+    setCombinedImages(prev => {
+      const items = [...prev];
+      const draggedItem = items[draggedImgIndex];
+      items.splice(draggedImgIndex, 1);
+      items.splice(index, 0, draggedItem);
+      return items;
+    });
+
+    setDraggedImgIndex(null);
+    setDraggedOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImgIndex(null);
+    setDraggedOverIndex(null);
   };
 
   const openModal = (item = null) => {
     setEditItem(item);
-    setImageFiles([]);
-    setPreviewUrls([]);
-    setImageColors([]);
-    setExistingImages([]);
-    setExistingImageColors([]);
+    setCombinedImages([]);
 
     if (item) {
       if (activeTab === 'weavers') {
@@ -282,7 +398,7 @@ const DesignManager = () => {
         if (item.colorStock) {
           try {
             parsedColorStocks = JSON.parse(item.colorStock);
-          } catch(e) {}
+          } catch (e) { }
         }
         setFormData({ ...item, colorStocks: parsedColorStocks });
       } else {
@@ -290,15 +406,21 @@ const DesignManager = () => {
       }
 
       if (activeTab === 'designs' && item.image) {
-        setExistingImages(item.image.split(',').map(s => s.trim()).filter(Boolean));
+        const exImages = item.image.split(',').map(s => s.trim()).filter(Boolean);
         let exColors = [];
         if (item.imageColorMap) {
           try {
             const parsedColors = JSON.parse(item.imageColorMap);
             exColors = Array.isArray(parsedColors) ? parsedColors : [];
-          } catch(e) {}
+          } catch (e) { }
         }
-        setExistingImageColors(exColors);
+        const combined = exImages.map((url, idx) => ({
+          id: `existing-${idx}-${Date.now()}`,
+          type: 'existing',
+          url,
+          color: exColors[idx] || ''
+        }));
+        setCombinedImages(combined);
       }
     } else {
       if (activeTab === 'designs') setFormData({ name: '', code: '', rate: '', availableStock: '', categoryId: '', colorStocks: {} });
@@ -350,7 +472,7 @@ const DesignManager = () => {
         const form = new FormData();
         const finalColorString = computedColors.join(', ');
         const appendedKeys = new Set();
-        
+
         Object.keys(formData).forEach(key => {
           if (key === 'color') {
             form.append('color', finalColorString);
@@ -366,14 +488,21 @@ const DesignManager = () => {
         if (!appendedKeys.has('color')) {
           form.append('color', finalColorString);
         }
-        imageFiles.forEach((file, idx) => {
-          form.append('images', file);
-          form.append('imageColors', imageColors[idx] || '');
+        const mediaSequence = [];
+        combinedImages.forEach((img, idx) => {
+          if (img.type === 'existing') {
+            form.append('existingImages', img.url);
+            form.append('existingImageColors', img.color || '');
+            mediaSequence.push('existing');
+          } else {
+            form.append('images', img.file);
+            form.append('imageColors', img.color || '');
+            mediaSequence.push('new');
+          }
         });
-        existingImages.forEach((url, idx) => {
-          form.append('existingImages', url);
-          form.append('existingImageColors', existingImageColors[idx] || '');
-        });
+        if (mediaSequence.length > 0) {
+          form.append('mediaSequence', JSON.stringify(mediaSequence));
+        }
         payload = form;
       }
 
@@ -680,15 +809,15 @@ const DesignManager = () => {
                         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Stock Allocation per Color</label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                           {computedColors.map(color => (
-                            <TextField 
-                              key={color} 
-                              type="number" 
-                              label={`${color} Stock`} 
+                            <TextField
+                              key={color}
+                              type="number"
+                              label={`${color} Stock`}
                               value={formData.colorStocks?.[color] !== undefined ? formData.colorStocks[color] : ''}
-                              onChange={e => setFormData(prev => ({ 
-                                ...prev, 
-                                colorStocks: { ...prev.colorStocks, [color]: parseInt(e.target.value) || 0 } 
-                              }))} 
+                              onChange={e => setFormData(prev => ({
+                                ...prev,
+                                colorStocks: { ...prev.colorStocks, [color]: parseInt(e.target.value) || 0 }
+                              }))}
                               required
                             />
                           ))}
@@ -700,54 +829,38 @@ const DesignManager = () => {
                       <div className="flex flex-col gap-4">
                         <input type="file" multiple onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 flex-1" accept="image/*" />
                         <div className="flex flex-wrap gap-4 mt-2">
-                          {existingImages.map((url, index) => (
-                            <div key={`existing-${index}`} className="flex flex-col gap-2 w-32 shrink-0">
+                          {combinedImages.map((img, index) => (
+                            <div
+                              key={img.id}
+                              className={`flex flex-col gap-2 w-32 shrink-0 cursor-grab active:cursor-grabbing transition-transform ${draggedOverIndex === index ? 'scale-105 opacity-80 border border-dashed border-primary-500 rounded-lg' : ''}`}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, index)}
+                              onDragEnter={(e) => handleDragEnter(e, index)}
+                              onDragOver={handleDragOver}
+                              onDragLeave={(e) => handleDragLeave(e, index)}
+                              onDrop={(e) => handleDrop(e, index)}
+                              onDragEnd={handleDragEnd}
+                            >
                               <div className="relative w-32 h-48 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg">
-                                <img src={getImageUrl(url)} alt="Preview" className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(getImageUrl(url))} />
+                                <img src={img.type === 'existing' ? getImageUrl(img.url) : img.url} alt="Preview" className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(img.type === 'existing' ? getImageUrl(img.url) : img.url)} draggable={false} />
                                 {index === 0 && (
-                                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-wider">Front</div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-wider pointer-events-none">Front</div>
                                 )}
-                                <button type="button" onClick={() => removeExistingImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
+                                <button type="button" onClick={() => removeImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                               </div>
                               {index > 0 && (
-                                <input 
+                                <input
                                   type="text"
                                   placeholder="Color name"
-                                  value={existingImageColors[index] || ''}
+                                  value={img.color || ''}
                                   onChange={(e) => {
-                                    const newColors = [...existingImageColors];
-                                    newColors[index] = e.target.value;
-                                    setExistingImageColors(newColors);
+                                    const newImages = [...combinedImages];
+                                    newImages[index].color = e.target.value;
+                                    setCombinedImages(newImages);
                                   }}
-                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400"
-                                />
-                              )}
-                            </div>
-                          ))}
-                          {previewUrls.map((url, index) => (
-                            <div key={`new-${index}`} className="flex flex-col gap-2 w-32 shrink-0">
-                              <div className="relative w-32 h-48 rounded-lg border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg">
-                                <img src={url} alt="Preview" className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(url)} />
-                                {index === 0 && existingImages.length === 0 && (
-                                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-wider">Front</div>
-                                )}
-                                <button type="button" onClick={() => removeNewImage(index)} className="absolute top-0.5 right-0.5 bg-white rounded-full p-0.5 shadow hover:bg-red-50 text-red-500">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
-                              </div>
-                              {(index > 0 || existingImages.length > 0) && (
-                                <input 
-                                  type="text"
-                                  placeholder="Color name"
-                                  value={imageColors[index] || ''}
-                                  onChange={(e) => {
-                                    const newColors = [...imageColors];
-                                    newColors[index] = e.target.value;
-                                    setImageColors(newColors);
-                                  }}
-                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400"
+                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400 pointer-events-auto"
                                 />
                               )}
                             </div>
@@ -794,7 +907,7 @@ const DesignManager = () => {
 
       {isLoomModalOpen && selectedWeaver && (
         <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
               <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
                 <Layers className="mr-2 text-primary-600" size={20} />
@@ -809,40 +922,131 @@ const DesignManager = () => {
               {(!selectedWeaver.looms || selectedWeaver.looms.length === 0) ? (
                 <div className="text-center p-8 text-slate-500">This weaver has no looms defined. Edit the weaver to add loom numbers.</div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(() => {
-                    const designVariants = designs.flatMap(d => {
-                      if (!d.color) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
-                      const colors = d.color.split(',').map(c => c.trim()).filter(Boolean);
-                      if (colors.length === 0) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
-                      return colors.map(c => ({ ...d, _variantId: JSON.stringify({ id: d.id, color: c }), _color: c }));
-                    });
-                    return selectedWeaver.looms.map(loom => (
-                      <div key={loom.id} className="p-4 border border-slate-200 dark:border-dark-border rounded-xl bg-slate-50 dark:bg-dark-bg flex flex-col gap-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-slate-700 dark:text-slate-200">Loom #{loom.loomNo}</span>
-                          {loom.designId && (
-                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-medium">Assigned</span>
-                          )}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(() => {
+                      const designVariants = designs.flatMap(d => {
+                        if (!d.color) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
+                        const colors = d.color.split(',').map(c => c.trim()).filter(Boolean);
+                        if (colors.length === 0) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
+                        return colors.map(c => ({ ...d, _variantId: JSON.stringify({ id: d.id, color: c }), _color: c }));
+                      });
+                      return selectedWeaver.looms.map(loom => (
+                        <div key={loom.id} className="p-4 border border-slate-200 dark:border-dark-border rounded-xl bg-slate-50 dark:bg-dark-bg flex flex-col gap-3">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-slate-700 dark:text-slate-200">Loom #{loom.loomNo}</span>
+                            {loom.designId && (
+                              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-medium">Assigned</span>
+                            )}
+                          </div>
+                          <TextField
+                            select
+                            size="small"
+                            label="Assigned Design"
+                            value={loom.designId ? JSON.stringify({ id: loom.designId, color: loom.assignedColor || null }) : ''}
+                            onChange={(e) => handleAssignDesign(loom.id, e.target.value)}
+                            fullWidth
+                          >
+                            <MenuItem value=""><em>None</em></MenuItem>
+                            {designVariants.map(dv => (
+                              <MenuItem key={dv._variantId} value={dv._variantId} className="!p-0">
+                                <Tooltip
+                                  title={
+                                    dv.image ? (
+                                      <div className="p-2 flex flex-col items-center bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 w-48">
+                                        <img
+                                          src={getImageUrl(getVariantImage(dv))}
+                                          alt={dv.name}
+                                          className="w-full aspect-[3/4] object-cover rounded-lg shadow-sm border border-slate-200 dark:border-slate-700"
+                                        />
+                                        <p className="mt-2 text-slate-800 dark:text-slate-100 text-xs font-bold text-center leading-tight">
+                                          {dv.name}
+                                        </p>
+                                        {dv._color && (
+                                          <span className="mt-1.5 px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                                            {dv._color}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="p-2 text-xs text-slate-400 bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 shadow-md">
+                                        No image available
+                                      </div>
+                                    )
+                                  }
+                                  placement="right"
+                                  slotProps={{
+                                    tooltip: {
+                                      sx: {
+                                        backgroundColor: 'transparent',
+                                        boxShadow: 'none',
+                                        padding: 0,
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <div className="w-full h-full px-0 py-2">
+                                    {dv.code} - {dv.name} {dv._color ? `(${dv._color})` : ''}
+                                  </div>
+                                </Tooltip>
+                              </MenuItem>
+                            ))}
+                          </TextField>
                         </div>
-                        <TextField
-                          select
-                          size="small"
-                          label="Assigned Design"
-                          value={loom.designId ? JSON.stringify({ id: loom.designId, color: loom.assignedColor || null }) : ''}
-                          onChange={(e) => handleAssignDesign(loom.id, e.target.value)}
-                          fullWidth
-                        >
-                          <MenuItem value=""><em>None</em></MenuItem>
-                          {designVariants.map(dv => (
-                            <MenuItem key={dv._variantId} value={dv._variantId}>
-                              {dv.code} - {dv.name} {dv._color ? `(${dv._color})` : ''}
-                            </MenuItem>
-                          ))}
-                        </TextField>
+                      ));
+                    })()}
+                  </div>
+
+                  {selectedWeaver.looms.some(l => l.designId) && (
+                    <div className="pt-6 border-t border-slate-200 dark:border-dark-border">
+                      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                        <ImageIcon size={16} className="text-primary-600" /> Assigned Designs Gallery (by Loom)
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                        {selectedWeaver.looms
+                          .filter(l => l.designId)
+                          .map(loom => {
+                            const design = designs.find(d => d.id === loom.designId);
+                            if (!design) return null;
+                            const dv = {
+                              ...design,
+                              _color: loom.assignedColor
+                            };
+                            const imgPath = getVariantImage(dv);
+
+                            return (
+                              <div key={loom.id} className="flex flex-col items-center bg-slate-50 dark:bg-dark-bg p-2 rounded-xl border border-slate-200 dark:border-dark-border w-full shadow-sm hover:shadow-md transition-shadow relative">
+                                <div className="absolute top-1.5 left-1.5 bg-primary-600 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-md shadow-sm uppercase tracking-wider z-10">
+                                  Loom #{loom.loomNo}
+                                </div>
+                                <div className="w-full aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card mt-6">
+                                  {imgPath ? (
+                                    <img
+                                      src={getImageUrl(imgPath)}
+                                      alt={`Loom ${loom.loomNo}`}
+                                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                      onClick={() => setSelectedImage(getImageUrl(imgPath))}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-400 font-bold uppercase">No Img</div>
+                                  )}
+                                </div>
+                                <div className="mt-2 text-center w-full">
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate" title={design.code}>
+                                    {design.code}
+                                  </div>
+                                  {loom.assignedColor && (
+                                    <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title={loom.assignedColor}>
+                                      {loom.assignedColor}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
-                    ));
-                  })()}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -862,7 +1066,12 @@ const DesignManager = () => {
             <button onClick={() => setSelectedImage(null)} className="absolute -top-10 right-0 text-white hover:text-slate-300">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            <img src={selectedImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700/50" onClick={e => e.stopPropagation()} />
+            <ImageZoom
+              src={selectedImage}
+              alt="Preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700/50"
+              onClick={e => e.stopPropagation()}
+            />
           </div>
         </div>
       )}
@@ -889,10 +1098,10 @@ const DesignManager = () => {
                         return (
                           <div className="relative group">
                             <div className="aspect-square overflow-hidden">
-                              <img
+                              <ImageZoom
                                 src={getImageUrl(images[viewSliderIndex] || images[0])}
                                 alt={`${viewItem.name} ${viewSliderIndex + 1}`}
-                                className="w-full h-full object-cover transition-all duration-300"
+                                className="w-full h-full object-cover"
                               />
                             </div>
                             {images.length > 1 && (
