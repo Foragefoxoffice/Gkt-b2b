@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCompaniesApi, createCompanyApi, updateCompanyApi, deleteCompanyApi } from '../Action/api';
+import { getCompaniesApi, createCompanyApi, updateCompanyApi, deleteCompanyApi, API_URL } from '../Action/api';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem } from '@mui/material';
@@ -15,7 +15,11 @@ const CompanyManager = () => {
   const [editItem, setEditItem] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    status: true
+    address: '',
+    gst: '',
+    phone: '',
+    status: true,
+    logo: null
   });
 
   useEffect(() => {
@@ -49,22 +53,43 @@ const CompanyManager = () => {
     if (item) {
       setFormData({
         name: item.name || '',
-        status: item.status !== undefined ? item.status : true
+        address: item.address || '',
+        gst: item.gst || '',
+        phone: item.phone || '',
+        status: item.status !== undefined ? item.status : true,
+        logo: null
       });
     } else {
-      setFormData({ name: '', status: true });
+      setFormData({ name: '', address: '', gst: '', phone: '', status: true, logo: null });
     }
     setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, logo: file });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('address', formData.address);
+      data.append('gst', formData.gst);
+      data.append('phone', formData.phone);
+      data.append('status', formData.status);
+      if (formData.logo) {
+        data.append('logo', formData.logo);
+      }
+
       if (editItem) {
-        await updateCompanyApi(editItem.id, formData);
+        await updateCompanyApi(editItem.id, data);
         toast.success('Company updated successfully');
       } else {
-        await createCompanyApi(formData);
+        await createCompanyApi(data);
         toast.success('Company created successfully');
       }
       setIsModalOpen(false);
@@ -145,7 +170,11 @@ const CompanyManager = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center font-bold mr-3 overflow-hidden shrink-0">
-                            <Building size={16} />
+                            {item.logo ? (
+                              <img src={`${API_URL.replace('/api', '')}${item.logo}`} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building size={16} />
+                            )}
                           </div>
                           <div>
                             <p className="text-md font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
@@ -203,6 +232,64 @@ const CompanyManager = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                 />
+                <TextField
+                  fullWidth
+                  label="Address"
+                  name="address"
+                  multiline
+                  rows={2}
+                  value={formData.address}
+                  onChange={handleInputChange}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <TextField
+                    fullWidth
+                    label="GST Number"
+                    name="gst"
+                    value={formData.gst}
+                    onChange={handleInputChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Company Logo</label>
+                  <div className="flex items-center gap-4">
+                    <div className="shrink-0 h-16 w-16 rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg/50 flex items-center justify-center text-slate-400">
+                      {formData.logo ? (
+                        <img 
+                          src={URL.createObjectURL(formData.logo)} 
+                          alt="New Logo" 
+                          className="h-full w-full object-cover" 
+                        />
+                      ) : editItem?.logo ? (
+                        <img 
+                          src={`${API_URL.replace('/api', '')}${editItem.logo}`} 
+                          alt="Current Logo" 
+                          className="h-full w-full object-cover" 
+                        />
+                      ) : (
+                        <Building size={24} />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/20 dark:file:text-primary-400 dark:hover:file:bg-primary-900/40 transition-colors cursor-pointer"
+                      />
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        {formData.logo ? `Selected: ${formData.logo.name}` : "PNG, JPG up to 5MB"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <TextField
                   select
                   fullWidth

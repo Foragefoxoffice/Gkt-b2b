@@ -86,7 +86,7 @@ const getVariantImage = (design, colorName) => {
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `http://localhost:5000${path.replace(/\\/g, '/')}`;
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${path.replace(/\\/g, '/')}`;
 };
 
 const BuyerOrders = () => {

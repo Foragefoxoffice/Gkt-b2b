@@ -8,6 +8,7 @@ import {
   LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building
 } from 'lucide-react';
 import logo from '../assets/AmbigaaSilks_logo.png';
+import smtLogo from '../assets/SMT_logo.png';
 
 export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
   <NavLink
@@ -120,9 +121,13 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
         {/* Logo Area */}
         {!collapsed && <div className="flex h-18 items-center justify-between px-6 py-2 shrink-0">
           <div className="flex items-center overflow-hidden">
-            {!collapsed && <img src={logo} alt="Logo" className="h-20 w-auto" />}
-            {collapsed && <img src={logo} alt="Logo" className="h-10 w-auto" />}
-            {!collapsed && <span className="ml-2 font-bold text-md tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AGS-SMT <br></br>B2B PORTAL</span>}
+            <div className="logo-flip-container h-20 w-20 shrink-0 mr-2">
+              <div className="logo-flip-wrapper">
+                <img src={logo} alt="Ambigaa Silks Logo" className="logo-flip-front" />
+                <img src={smtLogo} alt="Sri Malakhs Textile Logo" className="logo-flip-back" />
+              </div>
+            </div>
+            <span className="font-bold text-md tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AGS-SMT <br></br>B2B PORTAL</span>
           </div>
           <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
             <X size={20} />
@@ -132,7 +137,12 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
         {/* Logo Area Collapsed */}
         {collapsed && <div className="flex h-18 items-center justify-center px-0 py-3 shrink-0">
           <div className="flex items-center overflow-hidden">
-            {collapsed && <img src={logo} alt="Logo" className="h-12 w-auto" />}
+            <div className="logo-flip-container h-10 w-10 shrink-0">
+              <div className="logo-flip-wrapper">
+                <img src={logo} alt="Ambigaa Silks Logo" className="logo-flip-front" />
+                <img src={smtLogo} alt="Sri Malakhs Textile Logo" className="logo-flip-back" />
+              </div>
+            </div>
           </div>
           <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
             <X size={20} />
@@ -319,7 +329,7 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
           </div>
           <div className="flex items-center justify-center h-8 w-8 rounded-full overflow-hidden border border-slate-200 ml-2 cursor-pointer shadow-sm bg-[#e2148d] text-white text-sm font-bold uppercase shrink-0">
             {user?.profileImage ? (
-              <img src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`} alt="Profile" className="w-full h-full object-cover bg-white" />
+              <img src={user.profileImage.startsWith('http') ? user.profileImage : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`} alt="Profile" className="w-full h-full object-cover bg-white" />
             ) : (
               user?.name ? user.name.charAt(0) : user?.firmName ? user.firmName.charAt(0) : user?.email ? user.email.charAt(0) : 'U'
             )}
@@ -331,7 +341,7 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
       {showAllModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white dark:bg-dark-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/50">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#e2148d]/10 text-[#e2148d] rounded-xl">
                   <Bell size={24} />

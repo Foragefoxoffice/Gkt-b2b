@@ -4,11 +4,18 @@ import { Plus, Edit2, Trash2, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 
 const TransporterManager = () => {
   const [transporters, setTransporters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [limit, setLimit] = useState(10);
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,14 +26,18 @@ const TransporterManager = () => {
 
   useEffect(() => {
     fetchTransporters();
-  }, []);
+  }, [page, limit]);
 
   const fetchTransporters = async () => {
     setLoading(true);
     try {
-      const res = await getTransportersApi();
+      const res = await getTransportersApi({ page, limit });
       if (res.data.success) {
         setTransporters(res.data.data);
+        if (res.data.pagination) {
+           setTotalPages(res.data.pagination.totalPages);
+           setTotalItems(res.data.pagination.total || 0);
+        }
       }
     } catch (err) {
       toast.error('Failed to fetch transporters');
@@ -180,6 +191,19 @@ const TransporterManager = () => {
                 )}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <Pagination 
+                page={page} 
+                setPage={setPage} 
+                totalPages={totalPages} 
+                limit={limit} 
+                setLimit={setLimit} 
+                totalItems={totalItems} 
+                itemName="transporters" 
+              />
+            )}
           </div>
         )}
       </div>

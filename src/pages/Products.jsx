@@ -12,6 +12,11 @@ export default function Products() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     // Filtering states
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -122,16 +127,51 @@ export default function Products() {
         setLoading(true);
         try {
             const [designsRes, categoriesRes] = await Promise.all([
-                getDesignsApi(),
+                getDesignsApi({ page: 1, limit: 20 }),
                 getCategoriesApi()
             ]);
-            setProducts(designsRes.data.data);
-            setCategories(categoriesRes.data.data);
+            
+            const initialProducts = designsRes.data.data || [];
+            setProducts(initialProducts);
+            setCategories(categoriesRes.data.data || []);
+            
+            if (designsRes.data.pagination) {
+                setHasMore(designsRes.data.pagination.page < designsRes.data.pagination.totalPages);
+            } else {
+                setHasMore(initialProducts.length === 20);
+            }
         } catch (err) {
             toast.error('Failed to load products');
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMore = async () => {
+        if (!hasMore || loadingMore) return;
+        const nextPage = page + 1;
+        setLoadingMore(true);
+        try {
+            const res = await getDesignsApi({ page: nextPage, limit: 20 });
+            const newProducts = res.data.data || [];
+            
+            setProducts(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueNew = newProducts.filter(p => !existingIds.has(p.id));
+                return [...prev, ...uniqueNew];
+            });
+            setPage(nextPage);
+
+            if (res.data.pagination) {
+                setHasMore(res.data.pagination.page < res.data.pagination.totalPages);
+            } else {
+                setHasMore(newProducts.length === 20);
+            }
+        } catch (err) {
+            toast.error('Failed to load more products');
+        } finally {
+            setLoadingMore(false);
         }
     };
 
@@ -234,7 +274,7 @@ export default function Products() {
     const getImageUrl = (imageString) => {
         if (!imageString) return null;
         const firstImage = imageString.split(',')[0].trim().replace(/\\/g, '/');
-        return `http://localhost:5000${firstImage}`;
+        return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${firstImage}`;
     };
 
     // Animation variants
@@ -484,16 +524,37 @@ export default function Products() {
                             </button>
                         </div>
                     ) : (
-                        <motion.div
-                            variants={containerVariants}
-                            initial="hidden"
-                            animate="show"
-                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                        >
-                            {filteredProducts.map((product) => (
-                                <ProductCard key={product.id} product={product} onAddToCart={() => openAddToCartModal(product)} getImageUrl={getImageUrl} formatPrice={formatPrice} navigate={navigate} />
-                            ))}
-                        </motion.div>
+                        <>
+                            <motion.div
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="show"
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                            >
+                                {filteredProducts.map((product) => (
+                                    <ProductCard key={product.id} product={product} onAddToCart={() => openAddToCartModal(product)} getImageUrl={getImageUrl} formatPrice={formatPrice} navigate={navigate} />
+                                ))}
+                            </motion.div>
+
+                            {hasMore && (
+                                <div className="flex justify-center mt-12 mb-8">
+                                    <button
+                                        onClick={loadMore}
+                                        disabled={loadingMore}
+                                        className="px-8 py-3 bg-white dark:bg-dark-card text-primary-600 dark:text-primary-400 border-2 border-primary-100 dark:border-primary-900/30 rounded-full font-semibold hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-300 dark:hover:border-primary-800 transition-all flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loadingMore ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary-600 dark:border-primary-400 mr-3"></div>
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            'Load More Products'
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

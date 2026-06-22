@@ -9,6 +9,24 @@ const api = axios.create({
   },
 });
 
+// Deduplicate simultaneous GET requests
+const originalGet = api.get;
+const pendingGetRequests = new Map();
+
+api.get = function (url, config) {
+  const requestKey = `${url}?${JSON.stringify(config?.params || {})}`;
+  if (pendingGetRequests.has(requestKey)) {
+    return pendingGetRequests.get(requestKey);
+  }
+  
+  const promise = originalGet.call(this, url, config).finally(() => {
+    pendingGetRequests.delete(requestKey);
+  });
+  
+  pendingGetRequests.set(requestKey, promise);
+  return promise;
+};
+
 // Add request interceptor to include token
 api.interceptors.request.use(
   (config) => {
@@ -88,8 +106,8 @@ export const deleteFirmApi = (id) => api.delete(`/firms/${id}`);
 
 // Company APIs
 export const getCompaniesApi = () => api.get('/companies');
-export const createCompanyApi = (data) => api.post('/companies', data);
-export const updateCompanyApi = (id, data) => api.put(`/companies/${id}`, data);
+export const createCompanyApi = (data) => api.post('/companies', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const updateCompanyApi = (id, data) => api.put(`/companies/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteCompanyApi = (id) => api.delete(`/companies/${id}`);
 
 
@@ -100,27 +118,27 @@ export const updateBuyerApi = (id, data) => api.put(`/buyers/${id}`, data);
 export const deleteBuyerApi = (id) => api.delete(`/buyers/${id}`);
 
 // Category APIs
-export const getCategoriesApi = () => api.get('/categories');
+export const getCategoriesApi = (params) => api.get('/categories', { params });
 export const createCategoryApi = (data) => api.post('/categories', data);
 export const updateCategoryApi = (id, data) => api.put(`/categories/${id}`, data);
 export const deleteCategoryApi = (id) => api.delete(`/categories/${id}`);
 
 // Weaver APIs
-export const getWeaversApi = () => api.get('/weavers');
+export const getWeaversApi = (params) => api.get('/weavers', { params });
 export const createWeaverApi = (data) => api.post('/weavers', data);
 export const updateWeaverApi = (id, data) => api.put(`/weavers/${id}`, data);
 export const assignDesignToLoomApi = (weaverId, loomId, data) => api.put(`/weavers/${weaverId}/looms/${loomId}/assign`, data);
 export const deleteWeaverApi = (id) => api.delete(`/weavers/${id}`);
 
 // Design APIs
-export const getDesignsApi = () => api.get('/designs');
+export const getDesignsApi = (params) => api.get('/designs', { params });
 export const getDesignByIdApi = (id) => api.get(`/designs/${id}`);
 export const createDesignApi = (data) => api.post('/designs', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateDesignApi = (id, data) => api.put(`/designs/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteDesignApi = (id) => api.delete(`/designs/${id}`);
 
 // Transporter APIs
-export const getTransportersApi = () => api.get('/transporters');
+export const getTransportersApi = (params) => api.get('/transporters', { params });
 export const createTransporterApi = (data) => api.post('/transporters', data);
 export const updateTransporterApi = (id, data) => api.put(`/transporters/${id}`, data);
 export const deleteTransporterApi = (id) => api.delete(`/transporters/${id}`);

@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Tooltip } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ImageZoom from '../components/ImageZoom';
+import Pagination from '../components/Pagination';
+import imageCompression from 'browser-image-compression';
 
 const DesignManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -119,14 +121,34 @@ const DesignManager = () => {
 
   // Form State
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [sortBy, setSortBy] = useState('newest');
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   useEffect(() => {
     setSearchTerm('');
+    setDebouncedSearchTerm('');
     setSelectedCategory('ALL');
     setSortBy('newest');
+    setPage(1);
   }, [activeTab]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchTerm !== searchTerm) {
+        setDebouncedSearchTerm(searchTerm);
+        setPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, debouncedSearchTerm]);
 
   const filteredData = useMemo(() => {
     let data = [];
@@ -134,15 +156,7 @@ const DesignManager = () => {
     else if (activeTab === 'categories') data = [...categories];
     else data = [...weavers];
 
-    data = data.filter(item => {
-      const matchSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.code || '').toLowerCase().includes(searchTerm.toLowerCase());
-      let matchCat = true;
-      if (activeTab === 'designs' && selectedCategory !== 'ALL') {
-        matchCat = item.categoryId === parseInt(selectedCategory);
-      }
-      return matchSearch && matchCat;
-    });
+    // Client-side sorting on the current page data
 
     data.sort((a, b) => {
       if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
@@ -224,7 +238,7 @@ const DesignManager = () => {
   const getImageUrl = (path) => {
     if (!path) return '';
     const cleanPath = path.replace(/\\/g, '/');
-    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const getVariantImage = (dv) => {
@@ -250,12 +264,7 @@ const DesignManager = () => {
 
   useEffect(() => {
     fetchData();
-
-    // Listen for socket events to refresh list in real-time
-    const handleUpdate = () => fetchData();
-    window.addEventListener('inventoryUpdated', handleUpdate);
-    return () => window.removeEventListener('inventoryUpdated', handleUpdate);
-  }, [activeTab]);
+  }, [activeTab, page, limit, debouncedSearchTerm, selectedCategory]);
 
   const fetchData = async () => {
     if (designs.length === 0 && categories.length === 0 && weavers.length === 0) {
@@ -264,23 +273,40 @@ const DesignManager = () => {
     try {
       if (activeTab === 'designs') {
         const [dRes, cRes, wRes] = await Promise.all([
-          getDesignsApi(),
-          getCategoriesApi(),
-          getWeaversApi()
+          getDesignsApi({ 
+            page, 
+            limit, 
+            search: debouncedSearchTerm, 
+            categoryId: selectedCategory !== 'ALL' ? selectedCategory : undefined 
+          }),
+          getCategoriesApi({ limit: 1000 }),
+          getWeaversApi({ limit: 1000 })
         ]);
         setDesigns(dRes.data.data);
         setCategories(cRes.data.data);
         setWeavers(wRes.data.data);
+        if (dRes.data.pagination) {
+          setTotalPages(dRes.data.pagination.totalPages);
+          setTotalItems(dRes.data.pagination.total);
+        }
       } else if (activeTab === 'categories') {
-        const res = await getCategoriesApi();
+        const res = await getCategoriesApi({ page, limit, search: debouncedSearchTerm });
         setCategories(res.data.data);
+        if (res.data.pagination) {
+          setTotalPages(res.data.pagination.totalPages);
+          setTotalItems(res.data.pagination.total);
+        }
       } else {
         const [wRes, dRes] = await Promise.all([
-          getWeaversApi(),
-          getDesignsApi()
+          getWeaversApi({ page, limit, search: debouncedSearchTerm }),
+          getDesignsApi({ limit: 1000 })
         ]);
         setWeavers(wRes.data.data);
         setDesigns(dRes.data.data);
+        if (wRes.data.pagination) {
+          setTotalPages(wRes.data.pagination.totalPages);
+          setTotalItems(wRes.data.pagination.total);
+        }
       }
     } catch (err) {
       toast.error('Failed to fetch data');
@@ -288,6 +314,13 @@ const DesignManager = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Listen for socket events to refresh list in real-time
+    const handleUpdate = () => fetchData();
+    window.addEventListener('inventoryUpdated', handleUpdate);
+    return () => window.removeEventListener('inventoryUpdated', handleUpdate);
+  }, []);
 
   const handlePriceChange = (e, field) => {
     // Allow digits and at most one decimal point
@@ -306,23 +339,36 @@ const DesignManager = () => {
     return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
-    const validFiles = files.filter(file => {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error(`${file.name} is larger than 2MB`);
-        return false;
+    
+    const newImages = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      let file = files[i];
+      if (file.size > 1024 * 1024) { // Compress if > 1MB
+        try {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          const compressedFile = await imageCompression(file, options);
+          file = new File([compressedFile], file.name, { type: compressedFile.type });
+        } catch (error) {
+          console.error("Error compressing image:", error);
+          toast.error(`Failed to compress ${file.name}`);
+        }
       }
-      return true;
-    });
-
-    const newImages = validFiles.map((file, idx) => ({
-      id: `new-${idx}-${Date.now()}`,
-      type: 'new',
-      file,
-      url: URL.createObjectURL(file),
-      color: ''
-    }));
+      
+      newImages.push({
+        id: `new-${i}-${Date.now()}`,
+        type: 'new',
+        file,
+        url: URL.createObjectURL(file),
+        color: ''
+      });
+    }
 
     setCombinedImages(prev => [...prev, ...newImages]);
     e.target.value = '';
@@ -612,7 +658,7 @@ const DesignManager = () => {
               size="small"
               label="Category"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
             >
               <MenuItem value="ALL">All Categories</MenuItem>
               {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
@@ -769,6 +815,18 @@ const DesignManager = () => {
                 )}
               </tbody>
             </table>
+
+            {totalPages > 0 && (
+              <Pagination 
+                page={page} 
+                setPage={setPage} 
+                totalPages={totalPages} 
+                limit={limit} 
+                setLimit={setLimit} 
+                totalItems={totalItems} 
+                itemName={activeTab} 
+              />
+            )}
           </div>
         )}
       </div>

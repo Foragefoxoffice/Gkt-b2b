@@ -5,6 +5,7 @@ import { Package, AlertTriangle, Search, IndianRupee, ArrowDownUp, SlidersHorizo
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment } from '@mui/material';
+import Pagination from '../components/Pagination';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -65,6 +66,10 @@ const InventoryDashboard = () => {
   const [stockFilter, setStockFilter] = useState('ALL'); // ALL, IN, LOW, OUT
   const [sortBy, setSortBy] = useState('name_asc');
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   useEffect(() => {
     fetchData();
 
@@ -77,8 +82,8 @@ const InventoryDashboard = () => {
     if (designs.length === 0) setLoading(true);
     try {
       const [designsRes, catRes] = await Promise.all([
-        getDesignsApi(),
-        getCategoriesApi()
+        getDesignsApi({ limit: 5000 }), // Fetch all to calculate global KPIs accurately
+        getCategoriesApi({ limit: 5000 })
       ]);
       setDesigns(designsRes.data.data);
       setCategories(catRes.data.data);
@@ -91,7 +96,7 @@ const InventoryDashboard = () => {
 
   const lowStockThreshold = 20;
 
-  const { filteredAndSortedDesigns, kpis } = useMemo(() => {
+  const { filteredAndSortedDesigns, totalItems, totalPages, kpis } = useMemo(() => {
     // Calculate KPIs
     let totalStock = 0;
     let totalValue = 0;
@@ -130,8 +135,16 @@ const InventoryDashboard = () => {
       }
     });
 
+    const totalItems = result.length;
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    
+    // Slice for current page
+    const paginatedResult = result.slice((page - 1) * limit, page * limit);
+
     return {
-      filteredAndSortedDesigns: result,
+      filteredAndSortedDesigns: paginatedResult,
+      totalItems,
+      totalPages,
       kpis: {
         totalDesigns: designs.length,
         totalStock,
@@ -140,12 +153,12 @@ const InventoryDashboard = () => {
         outOfStockCount
       }
     };
-  }, [designs, searchTerm, selectedCategory, stockFilter, sortBy]);
+  }, [designs, searchTerm, selectedCategory, stockFilter, sortBy, page, limit]);
 
   const getImageUrl = (path) => {
     if (!path) return '';
     const cleanPath = path.replace(/\\/g, '/');
-    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const formatCurrency = (val) => {
@@ -221,7 +234,7 @@ const InventoryDashboard = () => {
               size="small"
               placeholder="Search designs by name or code..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -241,7 +254,7 @@ const InventoryDashboard = () => {
             size="small"
             label="Category"
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
           >
             <MenuItem value="ALL">All Categories</MenuItem>
             {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
@@ -254,7 +267,7 @@ const InventoryDashboard = () => {
             size="small"
             label="Stock Status"
             value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
+            onChange={(e) => { setStockFilter(e.target.value); setPage(1); }}
           >
             <MenuItem value="ALL">All Stock Levels</MenuItem>
             <MenuItem value="IN">In Stock</MenuItem>
@@ -269,7 +282,7 @@ const InventoryDashboard = () => {
             size="small"
             label="Sort By"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
           >
             <MenuItem value="name_asc">Name (A - Z)</MenuItem>
             <MenuItem value="name_desc">Name (Z - A)</MenuItem>
@@ -371,6 +384,19 @@ const InventoryDashboard = () => {
                 )}
               </tbody>
             </table>
+            
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <Pagination 
+                page={page} 
+                setPage={setPage} 
+                totalPages={totalPages} 
+                limit={limit} 
+                setLimit={setLimit} 
+                totalItems={totalItems} 
+                itemName="designs" 
+              />
+            )}
           </div>
         )}
       </div>

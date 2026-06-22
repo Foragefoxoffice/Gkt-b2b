@@ -225,7 +225,7 @@ export default function ProductDetails() {
     const getImageUrl = (imageString) => {
         if (!imageString) return null;
         const firstImage = imageString.split(',')[0].trim().replace(/\\/g, '/');
-        return `http://localhost:5000${firstImage}`;
+        return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${firstImage}`;
     };
 
     if (loading) {

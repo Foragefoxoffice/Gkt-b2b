@@ -127,16 +127,16 @@ const Login = () => {
   return (
     <>
       {showSplash && <Loader />}
-      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-slate-100 dark:border-dark-border p-8 sm:p-10">
+      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-slate-100 dark:border-dark-border px-10 py-8">
 
         {step === 'login' ? (
           <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2 tracking-tight">Welcome to our B2B Buyer Portal!</h2>
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1 tracking-tight">Welcome to our B2B Buyer Portal!</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm">Please enter your details to sign in.</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email address</label>
                 <div className="relative">
@@ -399,35 +399,71 @@ const Login = () => {
 
       {/* Contact Information for New Buyers */}
       {step === 'login' && (
-        <div className="mt-8 border border-primary-100 dark:border-primary-900/30 bg-primary-50/50 dark:bg-primary-900/10 rounded-2xl p-6 shadow-sm">
+        <div className="mt-6 border border-primary-100 dark:border-primary-900/30 bg-primary-50/50 dark:bg-primary-900/10 rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex flex-col items-center text-center mb-4">
-            <h3 className="text-primary-800 dark:text-primary-300 font-semibold text-lg mb-1">Don't have an account?</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Contact us to register for our wholesale B2B platform.</p>
+            <h3 className="text-primary-800 dark:text-primary-300 font-semibold text-lg mb-0.5">Don't have an account?</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-[13px]">Contact us to register for our wholesale B2B platform.</p>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-2 text-sm text-slate-600 dark:text-slate-300">
-            <div className="space-y-3">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
-                <span className="leading-relaxed">
-                  2/261-2, Chinthamaniur (p.o)<br />
-                  Omalur Via, Mettur tk.<br />
-                  Salem - 636 455
-                </span>
+
+          <div className="flex flex-col gap-4 relative z-10">
+            {/* Divider line for desktop */}
+            <div className="hidden sm:block absolute left-1/2 top-0 bottom-0 w-px bg-primary-100 dark:bg-primary-900/30 transform -translate-x-1/2"></div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {/* Ambigaa Silks */}
+              <div className="flex flex-col text-sm text-slate-600 dark:text-slate-300 sm:pr-4">
+                <h4 className="text-primary-700 dark:text-primary-400 font-bold mb-3 uppercase tracking-wider text-[11px] bg-white dark:bg-dark-card inline-flex self-start px-2 py-0.5 rounded shadow-sm border border-primary-100 dark:border-primary-900/30">Ambigaa Silks</h4>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
+                    <span className="leading-relaxed">
+                      2/261-2, Chinthamaniyur (p.o)<br />
+                      Omalur Via, Mettur tk.<br />
+                      Salem - 636 455
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-primary-600 shrink-0" />
+                    <span className="font-medium">9443248344</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-primary-600 shrink-0" />
+                    <span className="truncate">ambigaasilks@gmail.com</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Building className="w-4 h-4 text-primary-600 shrink-0" />
+                    <span className="font-medium text-[11px] sm:text-xs tracking-wide">GST: 33ADLPB5322Q1ZG</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-primary-600 shrink-0" />
-                <span className="font-medium">9443248344</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-primary-600 shrink-0" />
-                <span>ambigaasilks@gmail.com</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Building className="w-4 h-4 text-primary-600 shrink-0" />
-                <span className="font-medium text-xs tracking-wide">GST: 33ADLPB5322Q1ZG</span>
+
+              {/* Mobile divider */}
+              <div className="sm:hidden w-full h-px bg-primary-100 dark:bg-primary-900/30"></div>
+
+              {/* Sri Mallakkal Textiles */}
+              <div className="flex flex-col text-sm text-slate-600 dark:text-slate-300 sm:pl-4">
+                <h4 className="text-primary-700 dark:text-primary-400 font-bold mb-3 uppercase tracking-wider text-[11px] bg-white dark:bg-dark-card inline-flex self-start px-2 py-0.5 rounded shadow-sm border border-primary-100 dark:border-primary-900/30">Sri Mallakkal Textiles</h4>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
+                    <span className="leading-relaxed">
+                      2/17, Chinthamaniyur (P.O.),<br />
+                      Omalur (Via), Salem - Dt.<br />
+                      TamilNadu, Pin-636455
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium flex items-center gap-2"><span className="text-slate-900 dark:text-slate-200 text-[12px] w-16">Owner:</span> 97877 38094</span>
+                      <span className="font-medium flex items-center gap-2"><span className="text-slate-900 dark:text-slate-200 text-[12px] w-20">Buyer Order:</span> 86677 26423</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Building className="w-4 h-4 text-primary-600 shrink-0" />
+                    <span className="font-medium text-[11px] sm:text-xs tracking-wide">GST: 33ACHPG4971F1ZR</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

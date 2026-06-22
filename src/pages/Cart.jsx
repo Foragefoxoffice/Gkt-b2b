@@ -23,7 +23,7 @@ const Cart = () => {
   const getImageUrl = (path) => {
     if (!path) return '';
     const cleanPath = path.replace(/\\/g, '/');
-    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const formatPrice = (val) => {
@@ -417,19 +417,95 @@ const Cart = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-5 xl:col-span-4">
-            <div className="bg-slate-50 dark:bg-dark-card rounded-3xl p-6 sm:p-6 border border-slate-200 dark:border-dark-border sticky top-6">
-              <h2 className="text-xl font-semibold text-slate-800 dark:text-white mb-4">
-                Order Summary
-              </h2>
-
-              <div className="space-y-4 mb-6 text-slate-600 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-slate-800 dark:text-white">₹{formatPrice(subtotal.toFixed(2))}</span>
+            <div className="bg-slate-50 dark:bg-dark-card rounded-3xl p-6 sm:p-6 border border-slate-200 dark:border-dark-border sticky top-20">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-200 dark:border-dark-border">
+                <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-lg text-primary-600 dark:text-primary-400">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span>Estimated GST</span>
-                  <span className="text-slate-500">Calculated on checkout</span>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">
+                    Requirement Order Form
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">Please review details before placing the order</p>
+                </div>
+              </div>
+
+              {cartData?.buyer && (
+                <div className="mb-6 bg-white dark:bg-dark-bg p-4 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm space-y-4">
+                  {/* FROM Address (Company) */}
+                  <div className="relative">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500 rounded-l-full"></div>
+                    <div className="pl-4">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">From (Seller)</h3>
+                        {cartData.buyer.firm?.company?.logo && (
+                          <img src={getImageUrl(cartData.buyer.firm.company.logo)} alt="Logo" className="h-8 w-auto object-contain bg-slate-50 dark:bg-slate-800 rounded px-1" />
+                        )}
+                      </div>
+                      <div className="font-semibold text-slate-800 dark:text-white text-base">
+                        {cartData.buyer.firm?.company?.name || 'The Madras Silks'}
+                      </div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                        {cartData.buyer.firm?.company?.address || 'Unit Of The Madras Silks India (P) Ltd, Chennai'}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+                        {cartData.buyer.firm?.company?.gst && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold">GST:</span> {cartData.buyer.firm?.company?.gst}
+                          </div>
+                        )}
+                        {cartData.buyer.firm?.company?.phone && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold">Ph:</span> {cartData.buyer.firm?.company?.phone}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 dark:border-dark-border/50"></div>
+
+                  {/* TO Address (Buyer) */}
+                  <div className="relative">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-l-full"></div>
+                    <div className="pl-4">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">To (Buyer)</h3>
+                      <div className="font-semibold text-slate-800 dark:text-white text-base flex items-center justify-between">
+                        {cartData.buyer.name}
+                        <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded font-bold uppercase">
+                          {cartData.buyer.firm?.name || 'Firm'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                        {cartData.buyer.billingAddress || cartData.buyer.firm?.address || 'No Address Provided'}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+                        {(cartData.buyer.gst || cartData.buyer.firm?.gstNumber) && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold">GST:</span> {cartData.buyer.gst || cartData.buyer.firm?.gstNumber}
+                          </div>
+                        )}
+                        {(cartData.buyer.mobile || cartData.buyer.firm?.mobile) && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold">Ph:</span> {cartData.buyer.mobile || cartData.buyer.firm?.mobile}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-100 dark:bg-dark-bg/50 rounded-xl p-4 mb-6 border border-slate-200 dark:border-dark-border/50">
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                  <div className="flex justify-between items-center">
+                    <span>Subtotal</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">₹{formatPrice(subtotal.toFixed(2))}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Estimated GST</span>
+                    <span className="text-slate-500 italic text-xs">Calculated on checkout</span>
+                  </div>
                 </div>
               </div>
 
@@ -715,7 +791,7 @@ const Cart = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-3xl font-bold text-slate-800 dark:text-white mb-3"
+                className="text-2xl font-semibold text-slate-800 dark:text-white mb-3"
               >
                 Order Placed!
               </motion.h2>

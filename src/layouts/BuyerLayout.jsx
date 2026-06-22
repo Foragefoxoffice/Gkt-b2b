@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import {
   LayoutDashboard, ShoppingCart, Clock,
-  LogOut, X, Package, Zap, Tag
+  LogOut, X, Package, Zap, Tag, Settings
 } from 'lucide-react';
 import { Topbar, SidebarItem } from '../components/LayoutElements';
 import { getCartApi, getOrdersApi } from '../Action/api';
@@ -82,6 +82,12 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       items: [
         { icon: Clock, label: 'Order History', to: '/buyer/orders', badge: orderCount > 0 ? orderCount : null },
       ]
+    },
+    {
+      title: 'SUPPORT',
+      items: [
+        { icon: Settings, label: 'Settings', to: '/buyer/settings' },
+      ]
     }
   ];
 
@@ -95,12 +101,18 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
 
         {/* Logo Area */}
         {!collapsed && <div className="flex h-18 items-center justify-between px-6 py-2 shrink-0">
-          <div className="flex items-center overflow-hidden">
-            {!collapsed && <img src={logo} alt="Logo" className="h-20 w-auto" />}
-            {collapsed && <img src={logo} alt="Logo" className="h-10 w-auto" />}
-            {!collapsed && <span className="ml-2 font-bold text-md tracking-tight text-slate-800 dark:text-white whitespace-nowrap">AGS-SMT <br></br>B2B PORTAL</span>}
+          <div className="flex items-center overflow-hidden w-full">
+            <div className="logo-flip-container h-20 w-20 shrink-0 mr-2">
+              <div className={user?.companyLogo ? "logo-flip-wrapper" : "h-full w-full relative"}>
+                <img src={logo} alt="Platform Logo" className={user?.companyLogo ? "logo-flip-front" : "absolute inset-0 w-full h-full object-contain"} />
+                {user?.companyLogo && (
+                  <img src={user.companyLogo.startsWith('http') ? user.companyLogo : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${user.companyLogo.startsWith('/') ? '' : '/'}${user.companyLogo}`} alt="Company Logo" className="logo-flip-back" />
+                )}
+              </div>
+            </div>
+            <span className="font-bold text-md tracking-tight text-slate-800 dark:text-white leading-tight">AGS-SMT <br></br>B2B PORTAL</span>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1 shrink-0">
             <X size={20} />
           </button>
         </div>}
@@ -108,13 +120,19 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         {/* Logo Area Collapsed */}
         {collapsed && <div className="flex h-18 items-center justify-center px-0 py-3 shrink-0">
           <div className="flex items-center overflow-hidden">
-            {collapsed && <img src={logo} alt="Logo" className="h-12 w-auto" />}
+            <div className="logo-flip-container h-10 w-10 shrink-0">
+              <div className={user?.companyLogo ? "logo-flip-wrapper" : "h-full w-full relative"}>
+                <img src={logo} alt="Platform Logo" className={user?.companyLogo ? "logo-flip-front" : "absolute inset-0 w-full h-full object-contain"} />
+                {user?.companyLogo && (
+                  <img src={user.companyLogo.startsWith('http') ? user.companyLogo : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${user.companyLogo.startsWith('/') ? '' : '/'}${user.companyLogo}`} alt="Company Logo" className="logo-flip-back" />
+                )}
+              </div>
+            </div>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={() => setMobileOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 p-1 shrink-0">
             <X size={20} />
           </button>
-        </div>
-        }
+        </div>}
 
         {/* User Profile Summary */}
         {!collapsed && (
@@ -124,7 +142,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
                 {user?.profileImage ? (
                   <img
                     className="w-10 h-10 rounded-full border-2 border-white dark:border-dark-card object-cover bg-slate-100"
-                    src={user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`}
+                    src={user.profileImage.startsWith('http') ? user.profileImage : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage}`}
                     alt="Avatar"
                   />
                 ) : (

@@ -3,9 +3,52 @@ import toast from 'react-hot-toast';
 import { useSocket } from '../context/SocketContext';
 import { Bell, ShoppingCart, Truck, X, Package } from 'lucide-react';
 import React from 'react';
+import orderDeliveredSound from '../assets/order_delivered.mp3';
+import orderCanceledSound from '../assets/order_canceled.mp3';
+import orderPlacedSound from '../assets/order_placed.mp3';
+import mainNotificationSound from '../assets/main_notification.wav';
+
+let audioInstances = {};
+if (typeof Audio !== 'undefined') {
+  audioInstances = {
+    DISPATCH_CREATED: new Audio(orderDeliveredSound),
+    ORDER_CREATED: new Audio(orderPlacedSound),
+    ORDER_CANCELLED: new Audio(orderCanceledSound),
+    MAIN: new Audio(mainNotificationSound)
+  };
+}
 
 export const useSocketNotification = () => {
   const socket = useSocket();
+
+  // Unlock audio on first user interaction to prevent NotAllowedError
+  useEffect(() => {
+    const unlockAudio = () => {
+      Object.values(audioInstances).forEach(audio => {
+        if (audio) {
+          audio.volume = 0; // Silent playback
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch(() => {});
+        }
+      });
+      
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -13,6 +56,18 @@ export const useSocketNotification = () => {
     const handleNotification = (data) => {
       console.log('Received notification:', data);
       
+      // Play sound based on notification type
+      const audioToPlay = audioInstances[data.type] || audioInstances.MAIN;
+      if (audioToPlay) {
+        audioToPlay.volume = 1;
+        audioToPlay.currentTime = 0;
+        audioToPlay.play().catch(e => {
+          if (e.name === 'NotAllowedError') {
+            toast('Please click anywhere on the page to enable notification sounds.', { icon: '🔇', id: 'audio-unlock-toast' });
+          }
+        });
+      }
+
       // Dispatch event to make it available to the notification UI panel
       const notificationData = {
         ...data,

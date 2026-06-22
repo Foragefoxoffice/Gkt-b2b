@@ -63,7 +63,7 @@ const BuyerDashboard = () => {
   const getImageUrl = (path) => {
     if (!path) return '';
     const cleanPath = path.replace(/\\/g, '/');
-    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   useEffect(() => {

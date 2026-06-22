@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Camera, Save, Phone, Mail, Settings } from 'lucide-react';
+import { User, Lock, Camera, Save, Phone, Mail, Settings, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
-import { TextField, InputAdornment } from '@mui/material';
+import { TextField, InputAdornment, IconButton } from '@mui/material';
 import { getProfileApi, updateProfileApi, changePasswordApi } from '../Action/api';
 import { updateUser } from '../store/slices/authSlice';
 
@@ -27,6 +27,10 @@ const AdminSettings = () => {
     confirmPassword: ''
   });
 
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -38,7 +42,7 @@ const AdminSettings = () => {
         const { name, phone, email, avatar, role } = res.data.data;
         setProfileData({ name: name || '', phone: phone || '', email, role: role.name });
         if (avatar) {
-          setAvatarPreview(avatar.startsWith('http') ? avatar : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatar.startsWith('/') ? '' : '/'}${avatar}`);
+          setAvatarPreview(avatar.startsWith('http') ? avatar : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${avatar.startsWith('/') ? '' : '/'}${avatar}`);
         }
       }
     } catch (error) {
@@ -179,12 +183,14 @@ const AdminSettings = () => {
                     onChange={handleProfileChange}
                     fullWidth
                     required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <User size={18} className="text-slate-400" />
-                        </InputAdornment>
-                      ),
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <User size={18} className="text-slate-400" />
+                          </InputAdornment>
+                        )
+                      }
                     }}
                   />
 
@@ -194,12 +200,14 @@ const AdminSettings = () => {
                     value={profileData.phone}
                     onChange={handleProfileChange}
                     fullWidth
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Phone size={18} className="text-slate-400" />
-                        </InputAdornment>
-                      ),
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Phone size={18} className="text-slate-400" />
+                          </InputAdornment>
+                        )
+                      }
                     }}
                   />
 
@@ -209,12 +217,14 @@ const AdminSettings = () => {
                     fullWidth
                     disabled
                     helperText="Email cannot be changed."
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Mail size={18} className="text-slate-400" />
-                        </InputAdornment>
-                      ),
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Mail size={18} className="text-slate-400" />
+                          </InputAdornment>
+                        )
+                      }
                     }}
                   />
 
@@ -251,18 +261,31 @@ const AdminSettings = () => {
               <form onSubmit={submitPassword} className="space-y-6">
                 <TextField
                   label="Current Password"
-                  type="password"
+                  type={showCurrentPassword ? "text" : "password"}
                   name="currentPassword"
                   value={passwordData.currentPassword}
                   onChange={handlePasswordChange}
                   fullWidth
                   required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock size={18} className="text-slate-400" />
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Lock size={18} className="text-slate-400" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            edge="end"
+                            size="small"
+                          >
+                            {showCurrentPassword ? <EyeOff size={18} className="text-slate-400" /> : <Eye size={18} className="text-slate-400" />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }
                   }}
                 />
 
@@ -270,37 +293,63 @@ const AdminSettings = () => {
 
                 <TextField
                   label="New Password"
-                  type="password"
+                  type={showNewPassword ? "text" : "password"}
                   name="newPassword"
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
                   fullWidth
                   required
-                  inputProps={{ minLength: 6 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock size={18} className="text-slate-400" />
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    htmlInput: { minLength: 6 },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Lock size={18} className="text-slate-400" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            edge="end"
+                            size="small"
+                          >
+                            {showNewPassword ? <EyeOff size={18} className="text-slate-400" /> : <Eye size={18} className="text-slate-400" />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }
                   }}
                 />
 
                 <TextField
                   label="Confirm New Password"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
                   fullWidth
                   required
-                  inputProps={{ minLength: 6 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock size={18} className="text-slate-400" />
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    htmlInput: { minLength: 6 },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Lock size={18} className="text-slate-400" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            edge="end"
+                            size="small"
+                          >
+                            {showConfirmPassword ? <EyeOff size={18} className="text-slate-400" /> : <Eye size={18} className="text-slate-400" />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }
                   }}
                 />
 

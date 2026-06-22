@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
 import orderCanceledSound from '../assets/order_canceled.mp3';
 import ImageZoom from '../components/ImageZoom';
+import { generateOrderPdf } from '../utils/generateOrderPdf';
+import { Download } from 'lucide-react';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -85,7 +87,7 @@ const getVariantImage = (design, colorName) => {
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `http://localhost:5000${path.replace(/\\/g, '/')}`;
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${path.replace(/\\/g, '/')}`;
 };
 
 const AdminOrders = () => {
@@ -96,6 +98,7 @@ const AdminOrders = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const navigate = useNavigate();
 
   // Confirm dialog state
@@ -205,6 +208,18 @@ const AdminOrders = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setTimeout(() => setSelectedOrder(null), 300);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedOrder) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateOrderPdf(selectedOrder);
+    } catch (err) {
+      console.error("Failed to generate PDF", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -632,7 +647,7 @@ const AdminOrders = () => {
 
                 <div>
                   <div className="flex justify-between items-end mb-4">
-                    <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center">
+                    <h3 className="font-semibold text-slate-800 dark:text-white text-lg flex items-center">
                       <ShoppingCart size={20} className="mr-2 text-primary-600" /> Order Items
                     </h3>
                   </div>
@@ -678,7 +693,7 @@ const AdminOrders = () => {
                                 <span className={`text-base font-bold ${isShort ? 'text-red-600' : 'text-slate-700 dark:text-slate-200'}`}>{item.quantity}</span>
                               </td>
                               <td className="p-4">
-                                <div className={`inline-flex items-center px-2 py-1 rounded-md border text-xs font-bold ${isShort ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+                                <div className={`inline-flex items-center px-2 py-1 rounded-md border text-xs font-semibold ${isShort ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
                                   {item.design.availableStock} available
                                 </div>
                               </td>
@@ -736,9 +751,19 @@ const AdminOrders = () => {
               </div>
 
               <div className="flex justify-between items-center px-8 py-5 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/80 dark:bg-dark-bg/50 shrink-0">
-                <button onClick={closeModal} className="px-6 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl shadow-sm transition-all">
-                  {selectedOrder.status === 'PENDING' ? 'Cancel' : 'Close Details'}
-                </button>
+                <div className="flex space-x-3">
+                  <button onClick={closeModal} className="px-6 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl shadow-sm transition-all">
+                    {selectedOrder.status === 'PENDING' ? 'Cancel' : 'Close Details'}
+                  </button>
+                  <button disabled={isGeneratingPdf} onClick={handleDownloadPdf} className="flex items-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-sm shadow-blue-600/30 transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed">
+                    {isGeneratingPdf ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                    ) : (
+                      <Download size={18} className="mr-2" /> 
+                    )}
+                    {isGeneratingPdf ? 'Generating...' : 'Download Order Form'}
+                  </button>
+                </div>
 
                 {selectedOrder.status === 'PENDING' && (
                   <div className="flex space-x-3">

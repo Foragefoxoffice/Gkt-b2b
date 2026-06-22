@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDesignsApi, getCategoriesApi } from '../Action/api';
-import { Search, Filter, ArrowRight, Sparkles, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ArrowRight, Sparkles, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -12,6 +12,11 @@ const DesignCatalog = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -22,34 +27,67 @@ const DesignCatalog = () => {
   const getImageUrl = (path) => {
     if (!path) return '';
     const cleanPath = path.split(',')[0].trim().replace(/\\/g, '/');
-    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const getImageUrls = (path) => {
     if (!path) return [];
     return path.split(',').map(p => {
       const cleanPath = p.trim().replace(/\\/g, '/');
-      return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+      return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
     });
   };
 
   useEffect(() => {
-    fetchData();
+    const initFetch = async () => {
+      setLoading(true);
+      try {
+        const [designsRes, catRes] = await Promise.all([
+          getDesignsApi({ page: 1, limit: 20 }),
+          getCategoriesApi()
+        ]);
+        const initialDesigns = designsRes.data.data || [];
+        setDesigns(initialDesigns);
+        setCategories(catRes.data.data || []);
+
+        if (designsRes.data.pagination) {
+          setHasMore(designsRes.data.pagination.page < designsRes.data.pagination.totalPages);
+        } else {
+          setHasMore(initialDesigns.length === 20);
+        }
+      } catch (err) {
+        toast.error('Failed to load inspiration gallery');
+      } finally {
+        setLoading(false);
+      }
+    };
+    initFetch();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
     try {
-      const [designsRes, catRes] = await Promise.all([
-        getDesignsApi(),
-        getCategoriesApi()
-      ]);
-      setDesigns(designsRes.data.data || []);
-      setCategories(catRes.data.data || []);
+      const res = await getDesignsApi({ page: nextPage, limit: 20 });
+      const newDesigns = res.data.data || [];
+
+      setDesigns(prev => {
+        const existingIds = new Set(prev.map(d => d.id));
+        const uniqueNew = newDesigns.filter(d => !existingIds.has(d.id));
+        return [...prev, ...uniqueNew];
+      });
+      setPage(nextPage);
+
+      if (res.data.pagination) {
+        setHasMore(res.data.pagination.page < res.data.pagination.totalPages);
+      } else {
+        setHasMore(newDesigns.length === 20);
+      }
     } catch (err) {
-      toast.error('Failed to load inspiration gallery');
+      toast.error('Failed to load more designs');
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -172,64 +210,85 @@ const DesignCatalog = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-2">
-          {filteredDesigns.map((design, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 % 0.3 }}
-              key={design.id}
-              onClick={() => navigate(`/buyer/product/${design.id}`)}
-              className="relative group rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-bg cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-200/50 dark:border-dark-border"
-            >
-              {getImageUrl(design.image) ? (
-                <img
-                  src={getImageUrl(design.image)}
-                  alt={design.name}
-                  className="w-full aspect-[4/5] object-cover transition-transform duration-700 group-hover:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full aspect-[4/5] flex items-center justify-center text-slate-400">
-                  <ImageIcon size={48} className="opacity-20" />
-                </div>
-              )}
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-2">
+            {filteredDesigns.map((design, i) => (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 % 0.3 }}
+                key={design.id}
+                onClick={() => navigate(`/buyer/product/${design.id}`)}
+                className="relative group rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-bg cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-200/50 dark:border-dark-border"
+              >
+                {getImageUrl(design.image) ? (
+                  <img
+                    src={getImageUrl(design.image)}
+                    alt={design.name}
+                    className="w-full aspect-[4/5] object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full aspect-[4/5] flex items-center justify-center text-slate-400">
+                    <ImageIcon size={48} className="opacity-20" />
+                  </div>
+                )}
 
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                  <span className="text-primary-300 text-xs font-semibold uppercase tracking-wider mb-2 block">
-                    {design.category?.name || 'Design'}
-                  </span>
-                  <h3 className="text-white text-xl font-semibold mb-1 leading-tight">{design.name}</h3>
-                  <p className="text-slate-300 text-sm font-mono mb-6">{design.code}</p>
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                    <span className="text-primary-300 text-xs font-semibold uppercase tracking-wider mb-2 block">
+                      {design.category?.name || 'Design'}
+                    </span>
+                    <h3 className="text-white text-xl font-semibold mb-1 leading-tight">{design.name}</h3>
+                    <p className="text-slate-300 text-sm font-mono mb-6">{design.code}</p>
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedImage(design);
-                        setCurrentSlideIndex(0);
-                      }}
-                      className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center"
-                    >
-                      Quick View
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/buyer/product/${design.id}`);
-                      }}
-                      className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center shadow-lg shadow-primary-600/30"
-                    >
-                      Buy Now <ArrowRight size={16} className="ml-1.5" />
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImage(design);
+                          setCurrentSlideIndex(0);
+                        }}
+                        className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center"
+                      >
+                        Quick View
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/buyer/product/${design.id}`);
+                        }}
+                        className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center shadow-lg shadow-primary-600/30"
+                      >
+                        Buy Now <ArrowRight size={16} className="ml-1.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="flex justify-center mt-12 mb-8">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="px-8 py-3 bg-white dark:bg-dark-card text-primary-600 dark:text-primary-400 border-2 border-primary-100 dark:border-primary-900/30 rounded-full font-semibold hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-300 dark:hover:border-primary-800 transition-all flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary-600 dark:border-primary-400 mr-3"></div>
+                    Loading...
+                  </>
+                ) : (
+                  'Load More Designs'
+                )}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Quick View Lightbox */}

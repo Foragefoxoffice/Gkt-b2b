@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUser } from './store/slices/authSlice';
+import { getProfileApi } from './Action/api';
 
 // Layouts
 import AuthLayout from './layouts/AuthLayout.jsx';
@@ -30,7 +32,7 @@ import ProductDetails from './pages/ProductDetails.jsx';
 
 const PrivateRoute = ({ children, roles }) => {
   const { isAuthenticated, user } = useSelector(state => state.auth);
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -45,8 +47,23 @@ const PrivateRoute = ({ children, roles }) => {
 import { SocketProvider } from './context/SocketContext.jsx';
 
 function App() {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector(state => state.auth);
+
   // Restore dark mode
   useEffect(() => {
+    if (isAuthenticated) {
+      getProfileApi()
+        .then(res => {
+          if (res.data?.success) {
+            dispatch(updateUser(res.data.data));
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch profile", err);
+        });
+    }
+
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     } else {
@@ -59,7 +76,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
-          
+
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
           </Route>
@@ -92,6 +109,7 @@ function App() {
             <Route path="/buyer/orders" element={<BuyerOrders />} />
             <Route path="/buyer/products" element={<Products />} />
             <Route path="/buyer/product/:id" element={<ProductDetails />} />
+            <Route path="/buyer/settings" element={<AdminSettings />} />
           </Route>
 
           <Route path="*" element={<div className="flex h-screen items-center justify-center">404 Not Found</div>} />

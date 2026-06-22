@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getDispatchesApi, getOrdersApi, getTransportersApi, createDispatchApi, updateDispatchStatusApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck, Upload } from 'lucide-react';
+import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DispatchManager = () => {
@@ -12,6 +13,10 @@ const DispatchManager = () => {
 
   const [dispatches, setDispatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [limit, setLimit] = useState(10);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -37,13 +42,28 @@ const DispatchManager = () => {
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [transporterFilter, setTransporterFilter] = useState('ALL');
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchTerm !== searchTerm) {
+        setDebouncedSearchTerm(searchTerm);
+        setPage(1); // Reset page on new search
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, debouncedSearchTerm]);
+
+  // Fetch when any relevant state changes
   useEffect(() => {
     fetchDispatches();
+  }, [page, limit, debouncedSearchTerm, statusFilter, transporterFilter]);
+
+  useEffect(() => {
     fetchOptions();
   }, []);
 
@@ -66,8 +86,18 @@ const DispatchManager = () => {
   const fetchDispatches = async () => {
     setLoading(true);
     try {
-      const res = await getDispatchesApi({ limit: 50 });
+      const res = await getDispatchesApi({
+        page,
+        limit,
+        search: debouncedSearchTerm,
+        status: statusFilter,
+        transporterId: transporterFilter
+      });
       setDispatches(res.data.data);
+      if (res.data.pagination) {
+        setTotalPages(res.data.pagination.totalPages);
+        setTotalItems(res.data.pagination.total || 0);
+      }
     } catch (err) {
       toast.error('Failed to load dispatches');
     } finally {
@@ -187,19 +217,7 @@ const DispatchManager = () => {
     }
   };
 
-  const filteredDispatches = useMemo(() => {
-    return dispatches.filter(d => {
-      const matchSearch =
-        (d.dispatchNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (d.order?.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (d.trackingNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchStatus = statusFilter === 'ALL' ? true : d.status === statusFilter;
-      const matchTransporter = transporterFilter === 'ALL' ? true : d.transporterId === parseInt(transporterFilter);
-
-      return matchSearch && matchStatus && matchTransporter;
-    });
-  }, [dispatches, searchTerm, statusFilter, transporterFilter]);
+  // Server-side filtering is now used, so we just use dispatches directly.
 
   return (
     <div className="space-y-6">
@@ -243,7 +261,10 @@ const DispatchManager = () => {
             size="small"
             label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
           >
             <MenuItem value="ALL">All Statuses</MenuItem>
             <MenuItem value="PENDING">Pending</MenuItem>
@@ -257,7 +278,10 @@ const DispatchManager = () => {
             size="small"
             label="Transporter"
             value={transporterFilter}
-            onChange={(e) => setTransporterFilter(e.target.value)}
+            onChange={(e) => {
+              setTransporterFilter(e.target.value);
+              setPage(1);
+            }}
           >
             <MenuItem value="ALL">All Transporters</MenuItem>
             {transporters.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
@@ -268,74 +292,89 @@ const DispatchManager = () => {
       <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-slate-500">Loading dispatches...</div>
-        ) : filteredDispatches.length === 0 ? (
+        ) : dispatches.length === 0 ? (
           <div className="p-16 text-center">
             <Archive className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
             <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">No dispatches found</p>
             <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Dispatch No.</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Order No.</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Transporter</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Tracking #</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Docs</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                  <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-dark-border">
-                {filteredDispatches.map(dispatch => (
-                  <tr key={dispatch.id} className="hover:bg-slate-50 dark:hover:bg-dark-bg/50 transition-colors">
-                    <td className="p-4 font-medium text-slate-800 dark:text-white">{dispatch.dispatchNumber}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.order?.orderNumber}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.transporter?.name}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.trackingNumber || '-'}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        {dispatch.bookingCopy && (
-                          <a href={`http://localhost:5000${dispatch.bookingCopy}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800" title="Booking Copy">
-                            <FileText size={18} />
-                          </a>
-                        )}
-                        {dispatch.invoiceCopy && (
-                          <a href={`http://localhost:5000${dispatch.invoiceCopy}`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-800" title="Invoice Copy">
-                            <FileText size={18} />
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(dispatch.status)}`}>
-                        {dispatch.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end">
-                        {dispatch.status === 'PENDING' && (
-                          <button onClick={() => handleUpdateStatus(dispatch.id, 'DISPATCHED')} className="btn btn-sm btn-primary bg-blue-600 hover:bg-blue-700">
-                            Mark Dispatched
-                          </button>
-                        )}
-                        {dispatch.status === 'DISPATCHED' && (
-                          <button
-                            onClick={() => openDeliveryModal(dispatch.id)}
-                            className="btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg shadow-sm shadow-emerald-500/30 transition-all hover:-translate-y-0.5 flex items-center gap-1.5"
-                          >
-                            <PackageCheck size={16} />
-                            Good Tracking Details
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <div className="flex flex-col h-full">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Dispatch No.</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Order No.</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Transporter</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Tracking #</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Docs</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                    <th className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-dark-border">
+                  {dispatches.map(dispatch => (
+                    <tr key={dispatch.id} className="hover:bg-slate-50 dark:hover:bg-dark-bg/50 transition-colors">
+                      <td className="p-4 font-medium text-slate-800 dark:text-white">{dispatch.dispatchNumber}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.order?.orderNumber}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.transporter?.name}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-400">{dispatch.trackingNumber || '-'}</td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          {dispatch.bookingCopy && (
+                            <a href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${dispatch.bookingCopy}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800" title="Booking Copy">
+                              <FileText size={18} />
+                            </a>
+                          )}
+                          {dispatch.invoiceCopy && (
+                            <a href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${dispatch.invoiceCopy}`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-800" title="Invoice Copy">
+                              <FileText size={18} />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(dispatch.status)}`}>
+                          {dispatch.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end">
+                          {dispatch.status === 'PENDING' && (
+                            <button onClick={() => handleUpdateStatus(dispatch.id, 'DISPATCHED')} className="btn btn-sm btn-primary bg-blue-600 hover:bg-blue-700">
+                              Mark Dispatched
+                            </button>
+                          )}
+                          {dispatch.status === 'DISPATCHED' && (
+                            <button
+                              onClick={() => openDeliveryModal(dispatch.id)}
+                              className="btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg shadow-sm shadow-emerald-500/30 transition-all hover:-translate-y-0.5 flex items-center gap-1.5"
+                            >
+                              <PackageCheck size={16} />
+                              Good Tracking Details
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Pagination Controls */}
+              {totalPages > 0 && (
+                <Pagination
+                  page={page}
+                  setPage={setPage}
+                  totalPages={totalPages}
+                  limit={limit}
+                  setLimit={setLimit}
+                  totalItems={totalItems}
+                  itemName="dispatches"
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -595,7 +634,7 @@ const DispatchManager = () => {
                 transition={{ delay: 0.4 }}
                 className="text-2xl font-bold text-slate-800 dark:text-white mb-2"
               >
-                Delivered Successfully!
+                Dispatch Completed!
               </motion.h2>
 
               <motion.p
