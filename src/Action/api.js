@@ -152,8 +152,9 @@ export const removeCartItemApi = (itemId) => api.delete(`/cart/remove/${itemId}`
 // Order APIs
 export const getOrdersApi = (params) => api.get('/orders', { params });
 export const getOrderByIdApi = (id) => api.get(`/orders/${id}`);
-export const createOrderApi = (data) => api.post('/orders', data);
+export const createOrderApi = (data) => api.post('/orders', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {});
 export const updateOrderStatusApi = (id, data) => api.put(`/orders/${id}/status`, data);
+export const emailOrderPdfApi = (id, data) => api.post(`/orders/${id}/email`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 
 // Product Request APIs
 export const getProductRequestsApi = (params) => api.get('/product-requests', { params });

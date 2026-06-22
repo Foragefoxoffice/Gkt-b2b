@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import orderCanceledSound from '../assets/order_canceled.mp3';
 import ImageZoom from '../components/ImageZoom';
 import { generateOrderPdf } from '../utils/generateOrderPdf';
-import { Download } from 'lucide-react';
+import { Download, Phone, FileText } from 'lucide-react';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -622,6 +622,48 @@ const AdminOrders = () => {
                   </div>
                 </div>
 
+                {(selectedOrder.orderGivenBy || selectedOrder.orderGivenByPhone || selectedOrder.signature) && (
+                  <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm p-4 mb-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-dark-border">
+                      {selectedOrder.orderGivenBy && (
+                        <div className="flex items-start gap-4 pb-6 md:pb-0">
+                          <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                            <User size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Order Given By</p>
+                            <p className="font-semibold text-slate-800 dark:text-white text-lg">{selectedOrder.orderGivenBy}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedOrder.orderGivenByPhone && (
+                        <div className="flex items-start gap-4 py-6 md:py-0 md:pl-8">
+                          <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                            <Phone size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Phone Number</p>
+                            <p className="font-semibold text-slate-800 dark:text-white text-lg">{selectedOrder.orderGivenByPhone}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedOrder.signature && (
+                        <div className="flex items-start gap-4 pt-6 md:pt-0 md:pl-8">
+                          <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <FileText size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Signature</p>
+                            <a href={getImageUrl(selectedOrder.signature)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors mt-1">
+                              <FileText size={16} /> View Signature
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {(selectedOrder.remarks || (selectedOrder.approvals && selectedOrder.approvals.length > 0 && selectedOrder.approvals[0].remarks)) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
                     {selectedOrder.remarks && (
@@ -698,7 +740,7 @@ const AdminOrders = () => {
                                 </div>
                               </td>
                               <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">₹{formatPrice(item.rate.toFixed(2))}</td>
-                              <td className="p-4 text-right font-semibold text-slate-800 dark:text-slate-200 text-base">₹{formatPrice(item.lineTotal.toFixed(2))}</td>
+                              <td className="p-4 text-right font-semibold text-slate-800 dark:text-slate-200 text-base">₹{formatPrice((item.rate * item.quantity).toFixed(2))}</td>
                             </tr>
                           );
                         })}

@@ -34,7 +34,7 @@ const loadAndConvertImageToBase64 = (url) => {
   });
 };
 
-export const generateOrderPdf = async (order) => {
+export const generateOrderPdf = async (order, options = { returnBlob: false }) => {
   console.log("generateOrderPdf started");
   try {
     const doc = new jsPDF();
@@ -215,7 +215,7 @@ export const generateOrderPdf = async (order) => {
         item.color || 'Default',
         item.rate.toFixed(2),
         item.quantity,
-        item.lineTotal.toFixed(2),
+        (item.rate * item.quantity).toFixed(2),
         '' // Image placeholder
       ]);
     }
@@ -277,6 +277,17 @@ export const generateOrderPdf = async (order) => {
     const sgst = totalGst / 2;
     const amountInWords = numberToWords(Math.round(order.grandTotal));
 
+    // Calculate dynamic GST text
+    let gstRatesText = 'GST : 5 %';
+    if (order.items && order.items.length > 0) {
+      const uniqueGstRates = [...new Set(order.items.map(item => item.taxPercent || item.design?.gstPercent || 5))];
+      if (uniqueGstRates.length === 1) {
+        gstRatesText = `GST : ${uniqueGstRates[0]} %`;
+      } else if (uniqueGstRates.length > 1) {
+        gstRatesText = `GST : Multiple Rates (${uniqueGstRates.join('%, ')}%)`;
+      }
+    }
+
     doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.setLineWidth(0.3);
 
@@ -284,10 +295,17 @@ export const generateOrderPdf = async (order) => {
     autoTable(doc, {
       startY: finalY,
       body: [
-        ['SGST : 2.5 %', 'CGST : 2.5 %', `SGST : Rs. ${cgst.toFixed(2)}`, `CGST : Rs. ${sgst.toFixed(2)}`, `GST VALUE : Rs. ${totalGst.toFixed(2)}`],
         [
-          { content: `Amount in Words: ${amountInWords}`, colSpan: 3, styles: { fillColor: [240, 245, 250], textColor: primaryColor, fontStyle: 'bold' } }, 
-          { content: `Total Quantity: ${totalQty}    Total Amount: Rs. ${order.grandTotal.toFixed(2)}`, colSpan: 2, styles: { halign: 'right', fillColor: [240, 245, 250], textColor: primaryColor, fontStyle: 'bold' } }
+          { content: `Total Quantity: ${totalQty}`, colSpan: 3 },
+          { content: `Total Amount (Without GST): Rs. ${order.totalAmount.toFixed(2)}`, colSpan: 2, styles: { halign: 'right' } }
+        ],
+        [
+          { content: gstRatesText, colSpan: 3 },
+          { content: `GST VALUE : Rs. ${totalGst.toFixed(2)}`, colSpan: 2, styles: { halign: 'right' } }
+        ],
+        [
+          { content: `Amount in Words: ${amountInWords}`, colSpan: 3, styles: { fillColor: [240, 245, 250], textColor: primaryColor, fontStyle: 'bold' } },
+          { content: `Grand Total: Rs. ${order.grandTotal.toFixed(2)}`, colSpan: 2, styles: { halign: 'right', fillColor: [240, 245, 250], textColor: primaryColor, fontStyle: 'bold' } }
         ]
       ],
       theme: 'grid',
@@ -311,49 +329,148 @@ export const generateOrderPdf = async (order) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     const terms = [
-      "1. Materials should be delivered as per our exact specifications. Substandard goods will be summarily rejected.",
-      "2. Goods must be delivered on or before the due date. Penalty @ 2% will be recovered if delayed.",
-      "3. Part supply / shipment will be subject to our written acceptance only.",
-      "4. GST Number must be mentioned in all your Bills / Invoices invariably.",
-      "5. Subject to Chennai Jurisdiction.",
-      "6. Details of our Purchase Order Number to be strictly mentioned in each of L.R.copy & Bundle.",
-      "7. As per our ISO Policy, our Product code detail should be strictly mentioned in every product."
+      "1. Order Confirmation: All orders are subject to acceptance and confirmation by the seller.",
+      "2. Price Validity: Prices displayed on the portal are wholesale prices and may change without prior notice.",
+      "3. Credit Facility and payment terms: Credit payment is available only to approved buyers. Credit limits and payment periods are decided by the seller.",
+      "4. Credit Payment Due Date: Buyers must make payment within the agreed credit period. Delayed payments may result in suspension of further orders.",
+      "5. Late Payment Charges: The seller reserves the right to charge 18% interest or late fees on overdue payments as permitted by applicable law.",
+      "6. Product Availability: All products are subject to stock availability. If an item is unavailable, the buyer will be informed accordingly.",
+      "7. Returns and Claims: Returns are accepted only for damaged, defective, or wrongly supplied products. Claims must be raised within 15 days of delivery with supporting photos.",
+      "8. Shipping and Delivery: Delivery dates are estimates only. The seller is not responsible for delays caused by transporters, couriers, or unforeseen circumstances.",
+      "9. Ownership of Goods: Goods supplied on credit remain the property of the seller until full payment is received. The seller reserves the right to recover goods in case of payment default.",
+      "Declaration: By placing an order through the portal, the buyer confirms that they have read, understood, and agreed to these Terms & Conditions."
     ];
 
     let termY = finalY + 8;
     terms.forEach(term => {
-      doc.text(term, 14, termY);
-      termY += 4;
+      if (term.startsWith('Declaration:')) {
+        doc.setFont("helvetica", "normal");
+        const lines = doc.splitTextToSize(term, 182);
+        doc.text(lines, 14, termY);
+        termY += lines.length * 3.5;
+      } else {
+        const colonIndex = term.indexOf(':');
+        if (colonIndex !== -1) {
+          const title = term.substring(0, colonIndex + 1);
+          const rest = term.substring(colonIndex + 1).trim();
+
+          doc.setFont("helvetica", "bold");
+          doc.text(title, 14, termY);
+          const titleWidth = doc.getTextWidth(title);
+
+          doc.setFont("helvetica", "normal");
+          const words = rest.split(' ');
+          let currentX = 14 + titleWidth + doc.getTextWidth(' ');
+          let line = '';
+
+          for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const testLine = line + (line ? ' ' : '') + word;
+            const testWidth = doc.getTextWidth(testLine);
+
+            if (currentX + testWidth > 196) {
+              if (line !== '') {
+                doc.text(line, currentX, termY);
+                termY += 3.5;
+                currentX = 14;
+                line = word;
+              } else {
+                termY += 3.5;
+                currentX = 14;
+                line = word;
+              }
+            } else {
+              line = testLine;
+            }
+          }
+          if (line) {
+            doc.text(line, currentX, termY);
+            termY += 3.5;
+          }
+        } else {
+          doc.setFont("helvetica", "normal");
+          const lines = doc.splitTextToSize(term, 182);
+          doc.text(lines, 14, termY);
+          termY += lines.length * 3.5;
+        }
+      }
+      
+      if (termY > 275) {
+        doc.addPage();
+        termY = 20;
+      }
     });
+
+    if (termY > 240) {
+      doc.addPage();
+      termY = 20;
+    }
 
     // Agreement line
     doc.setDrawColor(200, 200, 200);
     doc.line(14, termY + 2, 196, termY + 2);
 
     doc.setFontSize(8);
-    doc.text("I/We agree for the above terms & conditions, Thank you.", 14, termY + 6);
-    doc.text("Delivery Date:", 105, termY + 6, { align: "center" });
+    doc.text("Delivery Date:", 14, termY + 6);
     doc.setFont("helvetica", "bold");
     doc.text(`For ${company?.name || 'The Madras Silks India Pvt Ltd'}`, 196, termY + 6, { align: "right" });
 
     doc.line(14, termY + 10, 196, termY + 10);
 
+    termY += 16;
+    if (order.orderGivenBy) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      let givenByText = `Order Given By: ${order.orderGivenBy}`;
+      if (order.orderGivenByPhone) givenByText += ` (Ph: ${order.orderGivenByPhone})`;
+      doc.text(givenByText, 14, termY);
+    }
+
     // Signatures
-    termY += 25;
+    termY += 15;
+    if (order.signature) {
+      try {
+        const sigImg = await loadAndConvertImageToBase64(getImageUrl(order.signature));
+        if (sigImg && sigImg.dataUrl) {
+          // Calculate width to maintain aspect ratio with max height of 12
+          const imgHeight = 12;
+          const imgWidth = (sigImg.width * imgHeight) / sigImg.height;
+          doc.addImage(sigImg.dataUrl, 'PNG', 14, termY - 14, imgWidth, imgHeight);
+        }
+      } catch (e) {
+        console.error("Signature image error", e);
+      }
+    }
+
     doc.setFont("helvetica", "normal");
-    doc.text("Vendor Signature", 30, termY, { align: "center" });
-    doc.text("Authorised Signatory", 170, termY, { align: "center" });
+    doc.text("Buyer Signature", 14, termY);
+    doc.text("Authorised Signatory", 196, termY, { align: "right" });
 
     // Registered Office Footer
-    doc.setFillColor(245, 247, 250);
-    doc.rect(14, termY + 5, 182, 8, 'F');
     doc.setFontSize(7);
-    doc.text(`Reg Office: ${company?.address || 'No.55,Usman Road,T.Nagar,Chennai-600017'} | E-Mail: ${company?.email || 'acc@themadressilks.com'}`, 105, termY + 10, { align: "center" });
+    const addressStr = company?.address || 'No.55,Usman Road,T.Nagar,Chennai-600017';
+    const emailStr = company?.email || 'xxxxxxxxxx';
+    let footerText = `Reg Office: ${addressStr.trim()} | E-Mail: ${emailStr.trim()}`;
+    if (company?.phone) {
+      footerText += ` | Phone: ${company.phone.trim()}`;
+    }
+    const footerLines = doc.splitTextToSize(footerText, 170);
+    const boxHeight = footerLines.length * 3.5 + 4;
+
+    doc.setFillColor(245, 247, 250);
+    doc.rect(14, termY + 5, 182, boxHeight, 'F');
+    doc.text(footerLines, 105, termY + 9, { align: "center" });
 
     console.log("Saving PDF...");
     const buyerNameForFile = company?.name || firm?.name || order.buyer?.name || "Customer";
     const safeName = buyerNameForFile.replace(/[^a-zA-Z0-9-_]/g, '_');
-    doc.save(`Order_${order.orderNumber}_${safeName}.pdf`);
+    const filename = `Order_${order.orderNumber}_${safeName}.pdf`;
+
+    if (options.returnBlob) {
+      return doc.output('blob');
+    }
+
+    doc.save(filename);
     console.log("PDF saved successfully!");
   } catch (error) {
     console.error("Error generating PDF:", error);

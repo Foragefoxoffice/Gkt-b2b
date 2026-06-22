@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Clock, CheckCircle, Package, TrendingUp, TrendingDown, PieChart as PieChartIcon, BarChart2, Activity, MoreHorizontal, RefreshCcw } from 'lucide-react';
+import { Package, TrendingUp, TrendingDown, PieChart as PieChartIcon, BarChart2, Activity, MoreHorizontal, RefreshCcw } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer

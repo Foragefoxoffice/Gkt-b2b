@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi, createProductRequestApi } from '../Action/api';
+import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi, createProductRequestApi, emailOrderPdfApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ArrowRight, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
@@ -10,6 +10,7 @@ import TruckButton from '../components/TruckButton';
 import { Select, MenuItem, TextField } from '@mui/material';
 import ImageZoom from '../components/ImageZoom';
 import { AlertTriangle } from 'lucide-react';
+import { generateOrderPdf } from '../utils/generateOrderPdf';
 
 const Cart = () => {
   const { token } = useSelector(state => state.auth);
@@ -43,6 +44,10 @@ const Cart = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestRemarks, setRequestRemarks] = useState('');
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+
+  const [orderGivenBy, setOrderGivenBy] = useState('');
+  const [orderGivenByPhone, setOrderGivenByPhone] = useState('');
+  const [signatureFile, setSignatureFile] = useState(null);
 
   const getColorImage = (design, color) => {
     if (!design || !color) return null;
@@ -182,10 +187,29 @@ const Cart = () => {
         finalRemarks = `Preferred Transporter: ${customTransporter}\n${remarks}`.trim();
       }
 
-      await createOrderApi({
-        transporterId: (selectedTransporter === 'default' || selectedTransporter === 'other') ? null : selectedTransporter,
-        remarks: finalRemarks
-      });
+      const formData = new FormData();
+      if (selectedTransporter !== 'default' && selectedTransporter !== 'other' && selectedTransporter !== '') {
+        formData.append('transporterId', selectedTransporter);
+      }
+      formData.append('remarks', finalRemarks);
+      if (orderGivenBy) formData.append('orderGivenBy', orderGivenBy);
+      if (orderGivenByPhone) formData.append('orderGivenByPhone', orderGivenByPhone);
+      if (signatureFile) formData.append('signature', signatureFile);
+
+      const res = await createOrderApi(formData);
+      const newOrder = res.data.data;
+
+      try {
+        const pdfBlob = await generateOrderPdf(newOrder, { returnBlob: true });
+        if (pdfBlob) {
+          const emailFormData = new FormData();
+          emailFormData.append('orderPdf', pdfBlob, `Order_${newOrder.orderNumber}.pdf`);
+          await emailOrderPdfApi(newOrder.id, emailFormData);
+        }
+      } catch (pdfErr) {
+        console.error("Failed to generate and email PDF", pdfErr);
+      }
+
       window.dispatchEvent(new Event('cartUpdated'));
       window.dispatchEvent(new Event('ordersUpdated'));
       return Promise.resolve();
@@ -423,7 +447,7 @@ const Cart = () => {
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">
+                  <h2 className="text-xl font-semibold text-slate-800 dark:text-white leading-tight">
                     Requirement Order Form
                   </h2>
                   <p className="text-xs text-slate-500 font-medium">Please review details before placing the order</p>
@@ -437,7 +461,7 @@ const Cart = () => {
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500 rounded-l-full"></div>
                     <div className="pl-4">
                       <div className="flex justify-between items-start mb-1">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">From (Seller)</h3>
+                        <h3 className="text-xs font-semibold text-[#e2148dc4] uppercase tracking-wider">From (Seller)</h3>
                         {cartData.buyer.firm?.company?.logo && (
                           <img src={getImageUrl(cartData.buyer.firm.company.logo)} alt="Logo" className="h-8 w-auto object-contain bg-slate-50 dark:bg-slate-800 rounded px-1" />
                         )}
@@ -469,7 +493,7 @@ const Cart = () => {
                   <div className="relative">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-l-full"></div>
                     <div className="pl-4">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">To (Buyer)</h3>
+                      <h3 className="text-xs font-semibold text-[#e2148dc4] uppercase tracking-wider mb-1">To (Buyer)</h3>
                       <div className="font-semibold text-slate-800 dark:text-white text-base flex items-center justify-between">
                         {cartData.buyer.name}
                         <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded font-bold uppercase">
@@ -568,6 +592,84 @@ const Cart = () => {
                     />
                   </motion.div>
                 )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Order Given By
+                    </label>
+                    <TextField
+                      fullWidth
+                      value={orderGivenBy}
+                      onChange={(e) => setOrderGivenBy(e.target.value)}
+                      placeholder="Name of the person"
+                      variant="outlined"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '0.75rem',
+                          '& fieldset': { borderColor: '#e2e8f0' },
+                          '&:hover fieldset': { borderColor: '#cbd5e1' },
+                          '&.Mui-focused fieldset': { borderColor: '#d97706', borderWidth: '2px' },
+                        }
+                      }}
+                      className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone Number
+                    </label>
+                    <TextField
+                      fullWidth
+                      value={orderGivenByPhone}
+                      onChange={(e) => setOrderGivenByPhone(e.target.value)}
+                      placeholder="Phone number"
+                      variant="outlined"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '0.75rem',
+                          '& fieldset': { borderColor: '#e2e8f0' },
+                          '&:hover fieldset': { borderColor: '#cbd5e1' },
+                          '&.Mui-focused fieldset': { borderColor: '#d97706', borderWidth: '2px' },
+                        }
+                      }}
+                      className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Signature (Optional)
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setSignatureFile(e.target.files[0]);
+                        }
+                      }}
+                      className="block w-full text-sm text-slate-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-primary-50 file:text-primary-700
+                        hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-400
+                        cursor-pointer"
+                    />
+                    {signatureFile && (
+                      <button
+                        type="button"
+                        onClick={() => setSignatureFile(null)}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium shrink-0"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">

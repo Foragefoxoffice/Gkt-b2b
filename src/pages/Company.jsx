@@ -18,6 +18,7 @@ const CompanyManager = () => {
     address: '',
     gst: '',
     phone: '',
+    email: '',
     status: true,
     logo: null
   });
@@ -56,11 +57,12 @@ const CompanyManager = () => {
         address: item.address || '',
         gst: item.gst || '',
         phone: item.phone || '',
+        email: item.email || '',
         status: item.status !== undefined ? item.status : true,
         logo: null
       });
     } else {
-      setFormData({ name: '', address: '', gst: '', phone: '', status: true, logo: null });
+      setFormData({ name: '', address: '', gst: '', phone: '', email: '', status: true, logo: null });
     }
     setIsModalOpen(true);
   };
@@ -80,6 +82,7 @@ const CompanyManager = () => {
       data.append('address', formData.address);
       data.append('gst', formData.gst);
       data.append('phone', formData.phone);
+      data.append('email', formData.email);
       data.append('status', formData.status);
       if (formData.logo) {
         data.append('logo', formData.logo);
@@ -224,14 +227,40 @@ const CompanyManager = () => {
 
             <div className="overflow-y-auto p-6">
               <form id="company-form" onSubmit={handleSubmit} className="space-y-5">
-                <TextField
-                  required
-                  fullWidth
-                  label="Company Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <TextField
+                    required
+                    fullWidth
+                    label="Company Name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Email Address"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="GST Number"
+                    name="gst"
+                    value={formData.gst}
+                    onChange={handleInputChange}
+                  />
+                </div>
                 <TextField
                   fullWidth
                   label="Address"
@@ -241,37 +270,21 @@ const CompanyManager = () => {
                   value={formData.address}
                   onChange={handleInputChange}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <TextField
-                    fullWidth
-                    label="GST Number"
-                    name="gst"
-                    value={formData.gst}
-                    onChange={handleInputChange}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Phone Number"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                  />
-                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Company Logo</label>
                   <div className="flex items-center gap-4">
                     <div className="shrink-0 h-16 w-16 rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden bg-slate-50 dark:bg-dark-bg/50 flex items-center justify-center text-slate-400">
                       {formData.logo ? (
-                        <img 
-                          src={URL.createObjectURL(formData.logo)} 
-                          alt="New Logo" 
-                          className="h-full w-full object-cover" 
+                        <img
+                          src={URL.createObjectURL(formData.logo)}
+                          alt="New Logo"
+                          className="h-full w-full object-cover"
                         />
                       ) : editItem?.logo ? (
-                        <img 
-                          src={`${API_URL.replace('/api', '')}${editItem.logo}`} 
-                          alt="Current Logo" 
-                          className="h-full w-full object-cover" 
+                        <img
+                          src={`${API_URL.replace('/api', '')}${editItem.logo}`}
+                          alt="Current Logo"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <Building size={24} />
