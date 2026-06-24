@@ -85,9 +85,71 @@ const BuyerDashboard = () => {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-200 dark:bg-dark-border rounded w-1/4"></div>
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2">
+            <div className="h-8 bg-slate-200 dark:bg-dark-border rounded w-64"></div>
+            <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-48"></div>
+          </div>
+        </div>
+
+        {/* KPI Cards Row Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-28 bg-slate-200 dark:bg-dark-border rounded-xl"></div>)}
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card p-5 h-[130px] flex flex-col justify-between border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl shadow-sm">
+              <div className="flex justify-between items-start mb-2">
+                <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-24"></div>
+                <div className="h-6 w-6 bg-slate-200 dark:bg-dark-border rounded"></div>
+              </div>
+              <div className="flex items-end justify-between">
+                <div className="space-y-2">
+                  <div className="h-8 bg-slate-200 dark:bg-dark-border rounded w-16"></div>
+                  <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-32"></div>
+                </div>
+                <div className="h-10 w-24 bg-slate-200 dark:bg-dark-border rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Middle Section: Recent Orders & New Arrivals */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="card lg:col-span-2 h-[420px] flex flex-col border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="h-6 bg-slate-200 dark:bg-dark-border rounded w-48"></div>
+              <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-16"></div>
+            </div>
+            <div className="space-y-4 mt-2">
+              <div className="h-10 bg-slate-200 dark:bg-dark-border rounded w-full"></div>
+              <div className="h-12 bg-slate-200/50 dark:bg-dark-border/50 rounded w-full"></div>
+              <div className="h-12 bg-slate-200/50 dark:bg-dark-border/50 rounded w-full"></div>
+              <div className="h-12 bg-slate-200/50 dark:bg-dark-border/50 rounded w-full"></div>
+              <div className="h-12 bg-slate-200/50 dark:bg-dark-border/50 rounded w-full"></div>
+            </div>
+          </div>
+          <div className="card h-[420px] flex flex-col border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl shadow-sm p-6">
+            <div className="h-6 bg-slate-200 dark:bg-dark-border rounded w-32 mb-6"></div>
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="space-y-2">
+                  <div className="aspect-square bg-slate-200 dark:bg-dark-border rounded-lg"></div>
+                  <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-3/4"></div>
+                  <div className="h-3 bg-slate-200 dark:bg-dark-border rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+            <div className="h-10 bg-slate-200 dark:bg-dark-border rounded w-full mt-auto"></div>
+          </div>
+        </div>
+
+        {/* Charts Section Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card h-96 flex flex-col border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl shadow-sm p-6">
+              <div className="h-6 bg-slate-200 dark:bg-dark-border rounded w-48 mb-6"></div>
+              <div className="flex-1 bg-slate-100 dark:bg-dark-bg/50 rounded-lg"></div>
+            </div>
+          ))}
         </div>
       </div>
     );

@@ -93,10 +93,10 @@ export default function Products() {
         fetchCart();
         const handleCartUpdate = () => fetchCart();
         const handleInventoryUpdate = () => fetchInitialData();
-        
+
         window.addEventListener('cartUpdated', handleCartUpdate);
         window.addEventListener('inventoryUpdated', handleInventoryUpdate);
-        
+
         return () => {
             window.removeEventListener('cartUpdated', handleCartUpdate);
             window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
@@ -130,11 +130,11 @@ export default function Products() {
                 getDesignsApi({ page: 1, limit: 20 }),
                 getCategoriesApi()
             ]);
-            
+
             const initialProducts = designsRes.data.data || [];
             setProducts(initialProducts);
             setCategories(categoriesRes.data.data || []);
-            
+
             if (designsRes.data.pagination) {
                 setHasMore(designsRes.data.pagination.page < designsRes.data.pagination.totalPages);
             } else {
@@ -155,7 +155,7 @@ export default function Products() {
         try {
             const res = await getDesignsApi({ page: nextPage, limit: 20 });
             const newProducts = res.data.data || [];
-            
+
             setProducts(prev => {
                 const existingIds = new Set(prev.map(p => p.id));
                 const uniqueNew = newProducts.filter(p => !existingIds.has(p.id));
@@ -181,7 +181,7 @@ export default function Products() {
                 p.code.toLowerCase().includes(searchTerm.toLowerCase());
             const matchCategory = selectedCategory === 'ALL' || p.categoryId === selectedCategory;
             const matchStock = inStockOnly ? p.availableStock > 0 : true;
-            
+
             const matchPrice = p.rate >= priceRange[0] && p.rate <= priceRange[1];
 
             let matchColor = true;
@@ -326,7 +326,7 @@ export default function Products() {
                     <div className="hidden md:block">
                         <div className="w-64 h-64 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 flex items-center justify-center relative animate-[spin_60s_linear_infinite]">
                             <div className="w-48 h-48 bg-gradient-to-tr from-white/20 to-transparent rounded-full flex items-center justify-center">
-                                <img alt="Logo" className="w-auto" src="/src/assets/AmbigaaSilks_logo.png" />
+                                <img alt="Logo" className="w-auto" src="https://agssmtbuyers.com/AmbigaaSilks_logo.png" />
                             </div>
                         </div>
                     </div>

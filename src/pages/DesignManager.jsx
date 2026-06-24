@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCategoriesApi, createCategoryApi, updateCategoryApi, deleteCategoryApi, getWeaversApi, createWeaverApi, updateWeaverApi, deleteWeaverApi, assignDesignToLoomApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Tooltip } from '@mui/material';
@@ -267,9 +267,7 @@ const DesignManager = () => {
   }, [activeTab, page, limit, debouncedSearchTerm, selectedCategory]);
 
   const fetchData = async () => {
-    if (designs.length === 0 && categories.length === 0 && weavers.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     try {
       if (activeTab === 'designs') {
         const [dRes, cRes, wRes] = await Promise.all([
@@ -687,9 +685,9 @@ const DesignManager = () => {
 
       <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center">
-            <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-            Loading data...
+          <div className="p-16 flex flex-col items-center justify-center text-slate-500 min-h-[300px]">
+            <Loader2 className="w-10 h-10 animate-spin text-primary-600 mb-4" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium text-lg">Loading data...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -698,26 +696,26 @@ const DesignManager = () => {
                 <tr>
                   {activeTab === 'designs' ? (
                     <>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Image</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Design Name</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rate</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stock</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Image</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Code</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Design Name</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Category</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Rate</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Stock</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400 text-right">Actions</th>
                     </>
                   ) : activeTab === 'categories' ? (
                     <>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-32">Code</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Category Name</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400 w-32">Code</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Category Name</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400 text-right">Actions</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-32">Code</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weaver Name</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Looms</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400 w-32">Code</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Weaver Name</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400">Looms</th>
+                      <th className="px-6 py-4 text-md font-medium text-slate-600 dark:text-slate-400 text-right">Actions</th>
                     </>
                   )}
                 </tr>

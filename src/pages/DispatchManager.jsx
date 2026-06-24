@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getDispatchesApi, getOrdersApi, getTransportersApi, createDispatchApi, updateDispatchStatusApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck } from 'lucide-react';
+import { Truck, Plus, X, FileText, MessageSquare, Star, User, Search, SlidersHorizontal, Archive, PackageCheck, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -291,7 +291,10 @@ const DispatchManager = () => {
 
       <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-slate-200 dark:border-dark-border overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-slate-500">Loading dispatches...</div>
+          <div className="p-16 flex flex-col items-center justify-center text-slate-500 min-h-[300px]">
+            <Loader2 className="w-10 h-10 animate-spin text-primary-600 mb-4" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium text-lg">Loading dispatches...</p>
+          </div>
         ) : dispatches.length === 0 ? (
           <div className="p-16 text-center">
             <Archive className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />

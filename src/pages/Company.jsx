@@ -179,11 +179,11 @@ const CompanyManager = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center font-bold mr-3 overflow-hidden shrink-0">
-                        {item.logo ? (
-                          <img src={getImageUrl(item.logo)} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Building size={16} />
-                        )}
+                            {item.logo ? (
+                              <img src={getImageUrl(item.logo)} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building size={16} />
+                            )}
                           </div>
                           <div>
                             <p className="text-md font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
