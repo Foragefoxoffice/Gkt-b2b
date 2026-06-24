@@ -189,8 +189,8 @@ const DesignManager = () => {
         { title: 'Est. Stock Value', value: `₹${(totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : (totalValue / 1000).toFixed(1) + 'k')}`, trend: '+5.4%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' }
       ];
     } else if (activeTab === 'weavers') {
-      const totalLooms = weavers.reduce((acc, w) => acc + (w.looms ? w.looms.length : 0), 0);
-      const assignedLooms = weavers.reduce((acc, w) => acc + (w.looms ? w.looms.filter(l => l.designId).length : 0), 0);
+      const totalLooms = weavers.reduce((acc, w) => acc + (w.loom ? w.loom.length : 0), 0);
+      const assignedLooms = weavers.reduce((acc, w) => acc + (w.loom ? w.loom.filter(l => l.designId).length : 0), 0);
       const availableLooms = totalLooms - assignedLooms;
       return [
         { title: 'Total Weavers', value: weavers.length, trend: '+2.1%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
@@ -273,11 +273,11 @@ const DesignManager = () => {
     try {
       if (activeTab === 'designs') {
         const [dRes, cRes, wRes] = await Promise.all([
-          getDesignsApi({ 
-            page, 
-            limit, 
-            search: debouncedSearchTerm, 
-            categoryId: selectedCategory !== 'ALL' ? selectedCategory : undefined 
+          getDesignsApi({
+            page,
+            limit,
+            search: debouncedSearchTerm,
+            categoryId: selectedCategory !== 'ALL' ? selectedCategory : undefined
           }),
           getCategoriesApi({ limit: 1000 }),
           getWeaversApi({ limit: 1000 })
@@ -341,9 +341,9 @@ const DesignManager = () => {
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
-    
+
     const newImages = [];
-    
+
     for (let i = 0; i < files.length; i++) {
       let file = files[i];
       if (file.size > 1024 * 1024) { // Compress if > 1MB
@@ -360,7 +360,7 @@ const DesignManager = () => {
           toast.error(`Failed to compress ${file.name}`);
         }
       }
-      
+
       newImages.push({
         id: `new-${i}-${Date.now()}`,
         type: 'new',
@@ -438,7 +438,7 @@ const DesignManager = () => {
 
     if (item) {
       if (activeTab === 'weavers') {
-        setFormData({ ...item, looms: item.looms ? item.looms.map(l => l.loomNo).join(', ') : '' });
+        setFormData({ ...item, loom: item.loom ? item.loom.map(l => l.loomNo).join(', ') : '' });
       } else if (activeTab === 'designs') {
         let parsedColorStocks = {};
         if (item.colorStock) {
@@ -471,7 +471,7 @@ const DesignManager = () => {
     } else {
       if (activeTab === 'designs') setFormData({ name: '', code: '', rate: '', availableStock: '', categoryId: '', colorStocks: {} });
       if (activeTab === 'categories') setFormData({ name: '', code: '' });
-      if (activeTab === 'weavers') setFormData({ name: '', code: '', looms: '' });
+      if (activeTab === 'weavers') setFormData({ name: '', code: '', loom: '' });
     }
     setIsModalOpen(true);
   };
@@ -495,7 +495,7 @@ const DesignManager = () => {
       // Update local state for immediate feedback
       setSelectedWeaver(prev => ({
         ...prev,
-        looms: prev.looms.map(l => l.id === loomId ? { ...l, designId: payload.designId, assignedColor: payload.assignedColor } : l)
+        loom: prev.loom.map(l => l.id === loomId ? { ...l, designId: payload.designId, assignedColor: payload.assignedColor } : l)
       }));
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to assign design';
@@ -553,9 +553,10 @@ const DesignManager = () => {
       }
 
       if (activeTab === 'weavers') {
-        payload.looms = typeof payload.looms === 'string'
-          ? payload.looms.split(',').map(s => s.trim()).filter(Boolean)
-          : payload.looms;
+        payload.loom = typeof payload.loom === 'string'
+          ? payload.loom.split(',').map(s => s.trim()).filter(Boolean)
+          : payload.loom;
+        delete payload.looms;
       }
 
       if (editItem) {
@@ -779,11 +780,11 @@ const DesignManager = () => {
                           <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                             <div className="flex items-center gap-3">
                               <span className="font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">
-                                {item.looms?.length || 0} Looms
+                                {item.loom?.length || 0} Looms
                               </span>
-                              {(item.looms?.filter(l => l.designId)?.length || 0) > 0 && (
+                              {(item.loom?.filter(l => l.designId)?.length || 0) > 0 && (
                                 <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                                  {item.looms.filter(l => l.designId).length} Assigned
+                                  {item.loom.filter(l => l.designId).length} Assigned
                                 </span>
                               )}
                             </div>
@@ -817,14 +818,14 @@ const DesignManager = () => {
             </table>
 
             {totalPages > 0 && (
-              <Pagination 
-                page={page} 
-                setPage={setPage} 
-                totalPages={totalPages} 
-                limit={limit} 
-                setLimit={setLimit} 
-                totalItems={totalItems} 
-                itemName={activeTab} 
+              <Pagination
+                page={page}
+                setPage={setPage}
+                totalPages={totalPages}
+                limit={limit}
+                setLimit={setLimit}
+                totalItems={totalItems}
+                itemName={activeTab}
               />
             )}
           </div>
@@ -941,8 +942,8 @@ const DesignManager = () => {
                       <TextField
                         multiline
                         rows={3}
-                        value={formData.looms || ''}
-                        onChange={e => setFormData({ ...formData, looms: e.target.value })}
+                        value={formData.loom || ''}
+                        onChange={e => setFormData({ ...formData, loom: e.target.value })}
                         placeholder="e.g. 4001, 4002, 4003"
                       />
                     </div>
@@ -967,7 +968,7 @@ const DesignManager = () => {
         <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
           <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center">
                 <Layers className="mr-2 text-primary-600" size={20} />
                 Loom Assignments for {selectedWeaver.name}
               </h2>
@@ -977,7 +978,7 @@ const DesignManager = () => {
             </div>
 
             <div className="p-6 overflow-y-auto">
-              {(!selectedWeaver.looms || selectedWeaver.looms.length === 0) ? (
+              {(!selectedWeaver.loom || selectedWeaver.loom.length === 0) ? (
                 <div className="text-center p-8 text-slate-500">This weaver has no looms defined. Edit the weaver to add loom numbers.</div>
               ) : (
                 <div className="space-y-6">
@@ -989,7 +990,7 @@ const DesignManager = () => {
                         if (colors.length === 0) return [{ ...d, _variantId: JSON.stringify({ id: d.id, color: null }), _color: null }];
                         return colors.map(c => ({ ...d, _variantId: JSON.stringify({ id: d.id, color: c }), _color: c }));
                       });
-                      return selectedWeaver.looms.map(loom => (
+                      return selectedWeaver.loom.map(loom => (
                         <div key={loom.id} className="p-4 border border-slate-200 dark:border-dark-border rounded-xl bg-slate-50 dark:bg-dark-bg flex flex-col gap-3">
                           <div className="flex justify-between items-center">
                             <span className="font-semibold text-slate-700 dark:text-slate-200">Loom #{loom.loomNo}</span>
@@ -1043,7 +1044,7 @@ const DesignManager = () => {
                                     }
                                   }}
                                 >
-                                  <div className="w-full h-full px-0 py-2">
+                                  <div className="w-full h-full px-4 py-1">
                                     {dv.code} - {dv.name} {dv._color ? `(${dv._color})` : ''}
                                   </div>
                                 </Tooltip>
@@ -1055,13 +1056,13 @@ const DesignManager = () => {
                     })()}
                   </div>
 
-                  {selectedWeaver.looms.some(l => l.designId) && (
+                  {selectedWeaver.loom.some(l => l.designId) && (
                     <div className="pt-6 border-t border-slate-200 dark:border-dark-border">
                       <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
                         <ImageIcon size={16} className="text-primary-600" /> Assigned Designs Gallery (by Loom)
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                        {selectedWeaver.looms
+                        {selectedWeaver.loom
                           .filter(l => l.designId)
                           .map(loom => {
                             const design = designs.find(d => d.id === loom.designId);

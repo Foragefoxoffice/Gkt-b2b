@@ -151,17 +151,22 @@ const BuyerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="card lg:col-span-2">
+        <div className="card lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-md font-semibold text-slate-800 dark:text-white flex items-center"><RefreshCcw className="mr-2 text-primary-500" size={20} /> Recent Orders</h2>
             <Link to="/buyer/orders" className="text-sm text-primary-600 hover:text-primary-700 font-medium">View All</Link>
           </div>
 
           {recentOrders.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-              <Package size={48} className="mx-auto mb-3 opacity-50" />
-              <p>No recent orders found.</p>
-              <Link to="/buyer/designs" className="btn-primary mt-4 inline-block">Browse Designs</Link>
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] p-8 border-2 border-dashed border-slate-100 dark:border-slate-800/60 rounded-xl bg-slate-50/50 dark:bg-dark-bg/20">
+              <div className="bg-white dark:bg-slate-800 p-4 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 mb-4">
+                <Package size={32} className="text-slate-400 dark:text-slate-500" />
+              </div>
+              <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">No recent orders yet</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-6 text-center max-w-sm">Looks like you haven't placed any orders recently. Check out our latest designs to get started.</p>
+              <Link to="/buyer/designs" className="px-5 py-2.5 bg-white border border-slate-200 hover:border-primary-300 hover:bg-primary-50 text-primary-600 rounded-lg font-medium transition-colors shadow-sm">
+                Browse Designs
+              </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">

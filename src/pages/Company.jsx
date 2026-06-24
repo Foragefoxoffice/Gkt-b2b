@@ -10,6 +10,12 @@ const CompanyManager = () => {
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    const cleanPath = path.replace(/\\/g, '/');
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  };
+
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -173,11 +179,11 @@ const CompanyManager = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center font-bold mr-3 overflow-hidden shrink-0">
-                            {item.logo ? (
-                              <img src={`${API_URL.replace('/api', '')}${item.logo}`} alt={item.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <Building size={16} />
-                            )}
+                        {item.logo ? (
+                          <img src={getImageUrl(item.logo)} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Building size={16} />
+                        )}
                           </div>
                           <div>
                             <p className="text-md font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
@@ -282,7 +288,7 @@ const CompanyManager = () => {
                         />
                       ) : editItem?.logo ? (
                         <img
-                          src={`${API_URL.replace('/api', '')}${editItem.logo}`}
+                          src={getImageUrl(editItem.logo)}
                           alt="Current Logo"
                           className="h-full w-full object-cover"
                         />
