@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
-import { getBuyerDashboardApi } from '../Action/api';
+import { getBuyerDashboardApi, getOrderByIdApi, addToCartApi } from '../Action/api';
 import toast from 'react-hot-toast';
 
 const Sparkline = ({ color, data }) => (
@@ -81,6 +81,57 @@ const BuyerDashboard = () => {
     };
     fetchDashboard();
   }, []);
+
+  const handleRepeatOrder = async (order) => {
+    try {
+      const res = await getOrderByIdApi(order.id);
+      const orderDetails = res.data.data;
+
+      let successCount = 0;
+      let outOfStockCount = 0;
+      
+      for (const item of orderDetails.items) {
+        let maxStock = parseInt(item.design?.availableStock || 0);
+        if (item.color && item.design?.colorStock) {
+          try {
+            const parsed = typeof item.design.colorStock === 'string'
+              ? JSON.parse(item.design.colorStock)
+              : item.design.colorStock;
+            if (parsed[item.color] !== undefined) {
+              maxStock = parseInt(parsed[item.color]);
+            }
+          } catch (e) {}
+        }
+
+        if (maxStock < 1 || item.design?.deletedAt) {
+          outOfStockCount++;
+          continue;
+        }
+
+        try {
+          const qtyToAdd = Math.min(item.quantity, maxStock);
+          await addToCartApi({ designId: item.designId, quantity: qtyToAdd, color: item.color });
+          successCount++;
+        } catch {
+          console.error('Failed to add item', item.designId);
+        }
+      }
+
+      if (successCount > 0) {
+        if (outOfStockCount > 0) {
+          toast.success(`Added ${successCount} items to cart. ${outOfStockCount} items were out of stock.`);
+        } else {
+          toast.success(`Added ${successCount} items to cart`);
+        }
+        window.dispatchEvent(new Event('cartUpdated'));
+        navigate('/buyer/cart');
+      } else {
+        toast.error('Could not add any items to cart (they are out of stock)');
+      }
+    } catch {
+      toast.error('Failed to repeat order');
+    }
+  };
 
   if (loading) {
     return (
@@ -254,7 +305,7 @@ const BuyerDashboard = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button className="text-primary-600 hover:text-primary-800 font-medium text-xs border border-primary-200 dark:border-primary-900 bg-primary-50 dark:bg-primary-900/20 px-3 py-1.5 rounded hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
+                        <button onClick={() => handleRepeatOrder(order)} className="text-primary-600 hover:text-primary-800 font-medium text-xs border border-primary-200 dark:border-primary-900 bg-primary-50 dark:bg-primary-900/20 px-3 py-1.5 rounded hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
                           Reorder
                         </button>
                       </td>

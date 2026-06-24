@@ -226,6 +226,16 @@ const AdminDashboard = () => {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500 dark:text-slate-400">
+        <AlertTriangle size={48} className="mb-4 opacity-50 text-red-500" />
+        <h2 className="text-xl font-semibold mb-2">Dashboard Data Unavailable</h2>
+        <p>There was an error loading the dashboard data. You might not have the correct permissions.</p>
+      </div>
+    );
+  }
+
   const { kpi, charts } = data;
 
   // Dummy sparkline data for aesthetics

@@ -99,7 +99,7 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
             <div className="p-3.5 flex flex-col flex-1">
                 <div className="mb-0">
                     <span className="text-[10px] font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:text-primary-400 px-2 py-1 rounded-md uppercase tracking-wider mb-1.5 inline-block">
-                        {color ? color : product.category?.name || 'Design'}
+                        {color ? color : product.designcategory?.name || 'Design'}
                     </span>
                     <h3 className="text-sm font-semibold text-slate-800 dark:text-white line-clamp-1">{product.name}</h3>
                     <p className="text-[11px] text-slate-500 font-mono mt-0.5">Code: {product.code}</p>

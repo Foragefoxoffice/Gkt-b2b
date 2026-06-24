@@ -5,7 +5,7 @@ import { logout } from '../store/slices/authSlice';
 import { getAdminDashboardApi } from '../Action/api';
 import {
   LayoutDashboard, Users, ShoppingCart, Settings,
-  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building
+  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building, Shield
 } from 'lucide-react';
 import logo from '../assets/AmbigaaSilks_logo.png';
 import smtLogo from '../assets/SMT_logo.png';
@@ -36,6 +36,7 @@ export const SidebarItem = ({ icon: Icon, label, to, collapsed, badge }) => (
 export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
   const [badgeCounts, setBadgeCounts] = useState({ buyers: 0, pendingOrders: 0, pendingRequests: 0, pendingDispatches: 0 });
 
   useEffect(() => {
@@ -71,38 +72,46 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
     navigate('/login');
   };
 
-  const sidebarSections = [
+  const rawSidebarSections = [
     {
       title: 'OVERVIEW',
       items: [
-        { icon: LayoutDashboard, label: 'Dashboard', to: '/admin/dashboard' },
+        { icon: LayoutDashboard, label: 'Dashboard', to: '/admin/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'STAFF', 'MANAGER', 'DISPATCHER'] },
       ]
     },
     {
       title: 'OPERATIONS',
       items: [
-        { icon: Building, label: 'Companies', to: '/admin/companies' },
-        { icon: Users, label: 'Firms & Buyers', to: '/admin/buyers', badge: badgeCounts.buyers > 0 ? badgeCounts.buyers : null },
-        { icon: Truck, label: 'Dispatches', to: '/admin/dispatches', badge: badgeCounts.pendingDispatches > 0 ? badgeCounts.pendingDispatches : null },
-        { icon: Navigation, label: 'Transporters', to: '/admin/transporters' },
+        { icon: Building, label: 'Companies', to: '/admin/companies', roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER'] },
+        { icon: Users, label: 'Firms & Buyers', to: '/admin/buyers', badge: badgeCounts.buyers > 0 ? badgeCounts.buyers : null, roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF'] },
+        { icon: Truck, label: 'Dispatches', to: '/admin/dispatches', badge: badgeCounts.pendingDispatches > 0 ? badgeCounts.pendingDispatches : null, roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'DISPATCHER'] },
+        { icon: Navigation, label: 'Transporters', to: '/admin/transporters', roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'DISPATCHER'] },
       ]
     },
     {
       title: 'COMMERCE',
       items: [
-        { icon: Package, label: 'Designs', to: '/admin/designs' },
-        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.pendingOrders > 0 ? badgeCounts.pendingOrders : null },
-        { icon: Zap, label: 'Product Requests', to: '/admin/requests', badge: badgeCounts.pendingRequests > 0 ? badgeCounts.pendingRequests : null },
-        { icon: ClipboardList, label: 'Inventory', to: '/admin/inventory' },
+        { icon: Package, label: 'Designs', to: '/admin/designs', roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF'] },
+        { icon: ShoppingCart, label: 'Orders', to: '/admin/orders', badge: badgeCounts.pendingOrders > 0 ? badgeCounts.pendingOrders : null, roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'DISPATCHER'] },
+        { icon: Zap, label: 'Product Requests', to: '/admin/requests', badge: badgeCounts.pendingRequests > 0 ? badgeCounts.pendingRequests : null, roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF'] },
+        { icon: ClipboardList, label: 'Inventory', to: '/admin/inventory', roles: ['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF'] },
       ]
     },
     {
       title: 'SUPPORT',
       items: [
-        { icon: Settings, label: 'Settings', to: '/admin/settings' },
+        { icon: Shield, label: 'Staff & Roles', to: '/admin/staff', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { icon: Settings, label: 'Settings', to: '/admin/settings', roles: ['ADMIN', 'SUPER_ADMIN'] },
       ]
     }
   ];
+
+  const sidebarSections = rawSidebarSections
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => !item.roles || item.roles.includes(user?.role))
+    }))
+    .filter(section => section.items.length > 0);
 
   return (
     <>

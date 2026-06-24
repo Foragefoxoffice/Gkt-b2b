@@ -204,9 +204,29 @@ const BuyerOrders = () => {
       const orderDetails = res.data.data;
 
       let successCount = 0;
+      let outOfStockCount = 0;
+      
       for (const item of orderDetails.items) {
+        let maxStock = parseInt(item.design?.availableStock || 0);
+        if (item.color && item.design?.colorStock) {
+          try {
+            const parsed = typeof item.design.colorStock === 'string'
+              ? JSON.parse(item.design.colorStock)
+              : item.design.colorStock;
+            if (parsed[item.color] !== undefined) {
+              maxStock = parseInt(parsed[item.color]);
+            }
+          } catch (e) {}
+        }
+
+        if (maxStock < 1 || item.design?.deletedAt) {
+          outOfStockCount++;
+          continue;
+        }
+
         try {
-          await addToCartApi({ designId: item.designId, quantity: item.quantity, color: item.color });
+          const qtyToAdd = Math.min(item.quantity, maxStock);
+          await addToCartApi({ designId: item.designId, quantity: qtyToAdd, color: item.color });
           successCount++;
         } catch {
           console.error('Failed to add item', item.designId);
@@ -214,11 +234,15 @@ const BuyerOrders = () => {
       }
 
       if (successCount > 0) {
-        toast.success(`Added ${successCount} items to cart`);
+        if (outOfStockCount > 0) {
+          toast.success(`Added ${successCount} items to cart. ${outOfStockCount} items were out of stock.`);
+        } else {
+          toast.success(`Added ${successCount} items to cart`);
+        }
         window.dispatchEvent(new Event('cartUpdated'));
         navigate('/buyer/cart');
       } else {
-        toast.error('Could not add any items to cart (they may be out of stock)');
+        toast.error('Could not add any items to cart (they are out of stock)');
       }
     } catch {
       toast.error('Failed to repeat order');
@@ -675,9 +699,9 @@ const BuyerOrders = () => {
                   </div>
                 )}
 
-                {selectedOrder.dispatches && selectedOrder.dispatches.length > 0 && (
+                {(selectedOrder.dispatches || selectedOrder.dispatch) && (selectedOrder.dispatches || selectedOrder.dispatch).length > 0 && (
                   <div className="space-y-4 mb-2">
-                    {selectedOrder.dispatches.map((dispatch) => (
+                    {(selectedOrder.dispatches || selectedOrder.dispatch).map((dispatch) => (
                       <div key={dispatch.id} className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-900/30">
                         <div className="flex items-center gap-3 mb-4">
                           <div className="text-emerald-500"><PackageCheck size={20} /></div>

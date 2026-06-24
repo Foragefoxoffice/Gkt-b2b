@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getProductRequestsApi, getProductRequestByIdApi, updateProductRequestStatusApi } from '../Action/api';
 import { ShoppingBag, Eye, CheckCircle, XCircle, Package, MoreHorizontal, Clock, Search, SlidersHorizontal, User, Calendar, MessageSquare, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -484,6 +485,7 @@ const AdminRequests = () => {
                       <thead className="bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
                         <tr>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Design</th>
+                          <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Production</th>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Requested Quantity</th>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Current Stock</th>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Rate</th>
@@ -508,11 +510,25 @@ const AdminRequests = () => {
                                   )}
                                 </div>
                                 <div>
-                                  <p className="font-semibold text-slate-800 dark:text-slate-200 text-base">
+                                  <Link to="/admin/designs" className="font-semibold text-slate-800 dark:text-slate-200 text-base hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm" title="Manage Design">
                                     {item.design?.name} {item.color ? `(${item.color})` : ''}
-                                  </p>
+                                  </Link>
                                   <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{item.design?.code}</p>
                                 </div>
+                              </td>
+                              <td className="p-4 text-sm">
+                                {item.design?.loom?.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {item.design.loom.map(l => (
+                                      <div key={l.id} className="text-slate-600 dark:text-slate-400">
+                                        <span className="font-medium">Loom {l.loomNo}</span>
+                                        {l.weaver && <span className="text-xs ml-1 text-slate-500">({l.weaver.name})</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-xs italic">Not assigned</span>
+                                )}
                               </td>
                               <td className="p-4">
                                 <span className="text-base font-bold text-slate-700 dark:text-slate-200">{item.quantity}</span>

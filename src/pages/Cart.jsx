@@ -541,56 +541,60 @@ const Cart = () => {
               </div>
 
               <div className="space-y-6">
-                <div>
-                  <label className="flex items-center text-md font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                    <Truck size={16} className="mr-2 text-primary-500" />
-                    Transporter
-                  </label>
-                  <Select
-                    value={selectedTransporter === '' ? 'default' : selectedTransporter}
-                    onChange={(e) => setSelectedTransporter(e.target.value === 'default' ? '' : e.target.value)}
-                    displayEmpty
-                    fullWidth
-                    sx={{
-                      borderRadius: '0.75rem',
-                      '.MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#d97706', borderWidth: '2px' },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
-                      '.MuiSelect-select': { py: 1.5, px: 2, fontWeight: 500 }
-                    }}
-                    className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
-                  >
-                    <MenuItem value="default">Buyer will arrange / Decide later</MenuItem>
-                    {transporters.map(t => (
-                      <MenuItem key={t.id} value={t.id}>
-                        {t.name} {t.gstNumber ? `(GST: ${t.gstNumber})` : ''}
-                      </MenuItem>
-                    ))}
-                    <MenuItem value="other">Other (Specify Below)</MenuItem>
-                  </Select>
-                </div>
-
-                {selectedTransporter === 'other' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                    <TextField
-                      fullWidth
-                      value={customTransporter}
-                      onChange={(e) => setCustomTransporter(e.target.value)}
-                      placeholder="Enter preferred transporter name..."
-                      variant="outlined"
-                      sx={{
-                        mt: 2,
-                        '& .MuiOutlinedInput-root': {
+                {!hasOutOfStockItems && (
+                  <>
+                    <div>
+                      <label className="flex items-center text-md font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                        <Truck size={16} className="mr-2 text-primary-500" />
+                        Transporter
+                      </label>
+                      <Select
+                        value={selectedTransporter === '' ? 'default' : selectedTransporter}
+                        onChange={(e) => setSelectedTransporter(e.target.value === 'default' ? '' : e.target.value)}
+                        displayEmpty
+                        fullWidth
+                        sx={{
                           borderRadius: '0.75rem',
-                          '& fieldset': { borderColor: '#e2e8f0' },
-                          '&:hover fieldset': { borderColor: '#cbd5e1' },
-                          '&.Mui-focused fieldset': { borderColor: '#d97706', borderWidth: '2px' },
-                        },
-                        '& .MuiInputBase-input': { py: 1.5, px: 2 }
-                      }}
-                      className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
-                    />
-                  </motion.div>
+                          '.MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#d97706', borderWidth: '2px' },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                          '.MuiSelect-select': { py: 1.5, px: 2, fontWeight: 500 }
+                        }}
+                        className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
+                      >
+                        <MenuItem value="default">Buyer will arrange / Decide later</MenuItem>
+                        {transporters.map(t => (
+                          <MenuItem key={t.id} value={t.id}>
+                            {t.name} {t.gstNumber ? `(GST: ${t.gstNumber})` : ''}
+                          </MenuItem>
+                        ))}
+                        <MenuItem value="other">Other (Specify Below)</MenuItem>
+                      </Select>
+                    </div>
+
+                    {selectedTransporter === 'other' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                        <TextField
+                          fullWidth
+                          value={customTransporter}
+                          onChange={(e) => setCustomTransporter(e.target.value)}
+                          placeholder="Enter preferred transporter name..."
+                          variant="outlined"
+                          sx={{
+                            mt: 2,
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '0.75rem',
+                              '& fieldset': { borderColor: '#e2e8f0' },
+                              '&:hover fieldset': { borderColor: '#cbd5e1' },
+                              '&.Mui-focused fieldset': { borderColor: '#d97706', borderWidth: '2px' },
+                            },
+                            '& .MuiInputBase-input': { py: 1.5, px: 2 }
+                          }}
+                          className="bg-white dark:bg-dark-bg text-slate-700 dark:text-slate-200"
+                        />
+                      </motion.div>
+                    )}
+                  </>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

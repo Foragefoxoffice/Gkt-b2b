@@ -344,7 +344,7 @@ const InventoryDashboard = () => {
                         </td>
                         <td className="p-4">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 dark:bg-dark-bg dark:text-slate-300 border border-slate-200 dark:border-dark-border">
-                            {design.category?.name || 'Uncategorized'}
+                            {design.designcategory?.name || 'Uncategorized'}
                           </span>
                         </td>
                         <td className="p-4">

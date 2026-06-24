@@ -23,6 +23,7 @@ import DispatchManager from './pages/DispatchManager.jsx';
 import TransporterManager from './pages/TransporterManager.jsx';
 import Company from './pages/Company.jsx';
 import AdminSettings from './pages/AdminSettings.jsx';
+import StaffManager from './pages/StaffManager.jsx';
 
 import DesignCatalog from './pages/DesignCatalog.jsx';
 import Cart from './pages/Cart.jsx';
@@ -82,20 +83,21 @@ function App() {
           </Route>
 
           <Route element={
-            <PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}>
+            <PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'STAFF', 'MANAGER', 'DISPATCHER']}>
               <AdminLayout />
             </PrivateRoute>
           }>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/buyers" element={<FirmBuyerManager />} />
-            <Route path="/admin/companies" element={<Company />} />
-            <Route path="/admin/designs" element={<DesignManager />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/requests" element={<AdminRequests />} />
-            <Route path="/admin/inventory" element={<InventoryDashboard />} />
-            <Route path="/admin/dispatches" element={<DispatchManager />} />
-            <Route path="/admin/transporters" element={<TransporterManager />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/buyers" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF']}><FirmBuyerManager /></PrivateRoute>} />
+            <Route path="/admin/companies" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER']}><Company /></PrivateRoute>} />
+            <Route path="/admin/designs" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF']}><DesignManager /></PrivateRoute>} />
+            <Route path="/admin/orders" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'DISPATCHER']}><AdminOrders /></PrivateRoute>} />
+            <Route path="/admin/requests" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF']}><AdminRequests /></PrivateRoute>} />
+            <Route path="/admin/inventory" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF']}><InventoryDashboard /></PrivateRoute>} />
+            <Route path="/admin/dispatches" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'DISPATCHER']}><DispatchManager /></PrivateRoute>} />
+            <Route path="/admin/transporters" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'DISPATCHER']}><TransporterManager /></PrivateRoute>} />
+            <Route path="/admin/staff" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}><StaffManager /></PrivateRoute>} />
+            <Route path="/admin/settings" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}><AdminSettings /></PrivateRoute>} />
           </Route>
 
           <Route element={
@@ -112,7 +114,19 @@ function App() {
             <Route path="/buyer/settings" element={<AdminSettings />} />
           </Route>
 
-          <Route path="*" element={<div className="flex h-screen items-center justify-center">404 Not Found</div>} />
+          <Route path="/unauthorized" element={
+            <div className="flex h-screen items-center justify-center flex-col gap-4 text-slate-800 dark:text-white">
+              <h1 className="text-4xl font-bold">403</h1>
+              <p className="text-lg">You are not authorized to view this page.</p>
+              <button 
+                onClick={() => { localStorage.clear(); window.location.href = '/login'; }} 
+                className="mt-4 px-4 py-2 bg-[#e2148d] text-white rounded-lg hover:bg-[#c11078]"
+              >
+                Return to Login
+              </button>
+            </div>
+          } />
+          <Route path="*" element={<div className="flex h-screen items-center justify-center text-slate-800 dark:text-white">404 Not Found</div>} />
         </Routes>
       </Router>
     </SocketProvider>

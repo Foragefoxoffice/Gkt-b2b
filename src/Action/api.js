@@ -94,6 +94,13 @@ export const getProfileApi = () => api.get('/users/profile');
 export const updateProfileApi = (data) => api.put('/users/profile', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const changePasswordApi = (data) => api.put('/users/change-password', data);
 
+// Staff APIs
+export const getStaffApi = () => api.get('/staff');
+export const createStaffApi = (data) => api.post('/staff', data);
+export const updateStaffApi = (id, data) => api.put(`/staff/${id}`, data);
+export const deleteStaffApi = (id) => api.delete(`/staff/${id}`);
+export const getRolesApi = () => api.get('/staff/roles');
+
 // Dashboard APIs
 export const getAdminDashboardApi = () => api.get('/dashboard/admin');
 export const getBuyerDashboardApi = () => api.get('/dashboard/buyer');

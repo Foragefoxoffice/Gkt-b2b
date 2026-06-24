@@ -22,7 +22,7 @@ const DesignManager = () => {
 
   useEffect(() => {
     if (activeTab === 'designs' && designs.length > 0) {
-      const lowStockDesigns = designs.filter(d => (parseInt(d.availableStock) || 0) < 5);
+      const lowStockDesigns = designs.filter(d => (parseInt(d.availableStock) || 0) < 10);
 
       lowStockDesigns.forEach(d => {
         if (!alertedDesigns.current.has(d.id)) {
@@ -751,7 +751,7 @@ const DesignManager = () => {
                           <td className="px-6 py-3 font-semibold text-slate-800 dark:text-white text-sm">{item.name}</td>
                           <td className="px-6 py-3">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50">
-                              {item.category?.name || 'Uncategorized'}
+                              {item.designcategory?.name || 'Uncategorized'}
                             </span>
                           </td>
                           <td className="px-6 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{formatPrice(item.rate)}</td>
