@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Users, UserPlus, Edit2, Trash2, Search, Mail, Phone, Shield, User, Key
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -11,11 +11,11 @@ const StaffManager = () => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,7 +35,7 @@ const StaffManager = () => {
         getStaffApi(),
         getRolesApi()
       ]);
-      
+
       if (staffRes.data?.success) {
         setStaffList(staffRes.data.data);
       }
@@ -119,8 +119,8 @@ const StaffManager = () => {
     }
   };
 
-  const filteredStaff = staffList.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredStaff = staffList.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -133,7 +133,7 @@ const StaffManager = () => {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage admin access and roles</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="bg-[#e2148d] hover:bg-[#c11078] text-white px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 font-medium transition-all shadow-md shadow-[#e2148d]/20 whitespace-nowrap"
         >
@@ -241,7 +241,7 @@ const StaffManager = () => {
             {isEditMode ? 'Edit Staff Member' : 'Add New Staff'}
           </DialogTitle>
           <DialogContent dividers className="space-y-4">
-            
+
             <TextField
               label="Full Name"
               name="name"
@@ -326,9 +326,9 @@ const StaffManager = () => {
             <Button onClick={handleCloseModal} color="inherit" className="text-slate-600 dark:text-slate-400">
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              variant="contained" 
+            <Button
+              type="submit"
+              variant="contained"
               sx={{ backgroundColor: '#e2148d', '&:hover': { backgroundColor: '#c11078' } }}
               className="shadow-md shadow-[#e2148d]/20"
             >

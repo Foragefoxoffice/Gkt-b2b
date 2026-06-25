@@ -861,24 +861,18 @@ const DesignManager = () => {
                       <TextField type="number" label="GST %" value={formData.gstPercent} onChange={e => setFormData({ ...formData, gstPercent: e.target.value })} inputProps={{ step: "0.01" }} />
                       <TextField label="Material" value={formData.material || ''} onChange={e => setFormData({ ...formData, material: e.target.value })} />
                     </div>
-                    {computedColors.length > 0 && (
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Stock Allocation per Color</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          {computedColors.map(color => (
-                            <TextField
-                              key={color}
-                              type="number"
-                              label={`${color} Stock`}
-                              value={formData.colorStocks?.[color] !== undefined ? formData.colorStocks[color] : ''}
-                              onChange={e => setFormData(prev => ({
-                                ...prev,
-                                colorStocks: { ...prev.colorStocks, [color]: parseInt(e.target.value) || 0 }
-                              }))}
-                              required
-                            />
-                          ))}
-                        </div>
+                    {Object.keys(formData.colorStocks || {}).length > 0 && (
+                      <div className="grid grid-cols-1">
+                        <TextField
+                          type="number"
+                          label="Available Stock"
+                          value={Object.values(formData.colorStocks || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)}
+                          disabled
+                          InputProps={{
+                            readOnly: true,
+                          }}
+                          helperText="Auto-calculated from variant quantities"
+                        />
                       </div>
                     )}
                     <div>
@@ -908,17 +902,50 @@ const DesignManager = () => {
                                 </button>
                               </div>
                               {index > 0 && (
-                                <input
-                                  type="text"
-                                  placeholder="Color name"
-                                  value={img.color || ''}
-                                  onChange={(e) => {
-                                    const newImages = [...combinedImages];
-                                    newImages[index].color = e.target.value;
-                                    setCombinedImages(newImages);
-                                  }}
-                                  className="text-xs px-2 py-1 mt-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-dark-bg w-full focus:outline-none focus:ring-1 focus:ring-primary-500 placeholder-slate-400 pointer-events-auto"
-                                />
+                                <div className="flex items-center w-full mt-1.5 bg-white dark:bg-dark-bg border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 shadow-sm transition-all group">
+                                  <input
+                                    type="text"
+                                    placeholder="Color"
+                                    value={img.color || ''}
+                                    onChange={(e) => {
+                                      const oldColor = img.color;
+                                      const newColor = e.target.value;
+                                      const newImages = [...combinedImages];
+                                      newImages[index].color = newColor;
+                                      setCombinedImages(newImages);
+
+                                      if (oldColor && oldColor !== newColor) {
+                                        setFormData(prev => {
+                                          const newStocks = { ...prev.colorStocks };
+                                          const stockVal = newStocks[oldColor];
+                                          delete newStocks[oldColor];
+                                          if (newColor) {
+                                            newStocks[newColor] = stockVal || 0;
+                                          }
+                                          return { ...prev, colorStocks: newStocks };
+                                        });
+                                      }
+                                    }}
+                                    className="w-[60%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto"
+                                  />
+                                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
+                                  <input
+                                    type="number"
+                                    placeholder="Qty"
+                                    value={img.color ? (formData.colorStocks?.[img.color] !== undefined ? formData.colorStocks[img.color] : '') : ''}
+                                    onChange={(e) => {
+                                      if (img.color) {
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          colorStocks: { ...prev.colorStocks, [img.color]: parseInt(e.target.value) || 0 }
+                                        }));
+                                      }
+                                    }}
+                                    disabled={!img.color}
+                                    title={!img.color ? "Enter color name first" : "Stock Quantity"}
+                                    className="w-[40%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                </div>
                               )}
                             </div>
                           ))}
@@ -1042,7 +1069,7 @@ const DesignManager = () => {
                                     }
                                   }}
                                 >
-                                  <div className="w-full h-full px-4 py-1">
+                                  <div className="w-full h-full px-2 py-1">
                                     {dv.code} - {dv.name} {dv._color ? `(${dv._color})` : ''}
                                   </div>
                                 </Tooltip>
@@ -1146,93 +1173,93 @@ const DesignManager = () => {
             </div>
 
             <div className="p-6 overflow-y-auto">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="md:w-1/3">
-                  <div className="rounded-xl overflow-hidden bg-slate-100 dark:bg-dark-border border border-slate-200 dark:border-dark-border shadow-sm">
+              <div className="flex flex-col gap-6">
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 dark:bg-dark-bg p-5 rounded-xl border border-slate-200 dark:border-dark-border">
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{viewItem.name}</h3>
+                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">{viewItem.code}</p>
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Rate</p>
+                      <p className="font-bold text-primary-600 dark:text-primary-400 text-xl">₹{formatPrice(viewItem.rate)}</p>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">GST</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200 text-lg">{viewItem.gstPercent}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm flex flex-col justify-center gap-2">
+                    <div className="flex justify-between items-center border-b border-slate-50 dark:border-dark-border pb-3">
+                      <span className="text-xs text-slate-500 font-semibold uppercase">Category</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm bg-slate-50 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">{viewItem.designcategory?.name || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-0">
+                      <span className="text-xs text-slate-500 font-semibold uppercase">Stock</span>
+                      <span className={`inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-bold shadow-sm ${viewItem.availableStock <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : viewItem.availableStock <= 20 ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                        {viewItem.availableStock} Units
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm col-span-2 md:col-span-2 flex flex-col justify-center">
+                    <p className="text-xs text-slate-500 font-semibold uppercase mb-3">Color(s)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewItem.color ? viewItem.color.split(',').map((c, i) => (
+                        <span key={i} className="px-3 py-1.5 bg-slate-50 dark:bg-dark-bg text-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">{c.trim()}</span>
+                      )) : <span className="text-slate-400 italic text-sm">None</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+                    <ImageIcon size={18} className="text-primary-500" /> Design Images
+                  </h4>
+                  <div className="rounded-xl overflow-hidden bg-slate-50 dark:bg-dark-bg border border-slate-200 dark:border-dark-border shadow-sm p-3">
                     {viewItem.image ? (
                       (() => {
                         const images = viewItem.image.split(',').map(img => img.trim()).filter(Boolean);
+                        let colors = [];
+                        if (viewItem.imageColorMap) {
+                          try {
+                            const parsedColors = JSON.parse(viewItem.imageColorMap);
+                            colors = Array.isArray(parsedColors) ? parsedColors : [];
+                          } catch (e) { }
+                        }
+
                         return (
-                          <div className="relative group">
-                            <div className="aspect-square overflow-hidden">
-                              <ImageZoom
-                                src={getImageUrl(images[viewSliderIndex] || images[0])}
-                                alt={`${viewItem.name} ${viewSliderIndex + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            {images.length > 1 && (
-                              <>
-                                <button
-                                  onClick={() => setViewSliderIndex(prev => prev <= 0 ? images.length - 1 : prev - 1)}
-                                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-dark-card/90 hover:bg-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <ChevronLeft size={18} className="text-slate-700 dark:text-white" />
-                                </button>
-                                <button
-                                  onClick={() => setViewSliderIndex(prev => prev >= images.length - 1 ? 0 : prev + 1)}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-dark-card/90 hover:bg-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <ChevronRight size={18} className="text-slate-700 dark:text-white" />
-                                </button>
-                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                  {images.map((_, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={() => setViewSliderIndex(idx)}
-                                      className={`w-2 h-2 rounded-full transition-all ${idx === viewSliderIndex ? 'bg-white scale-125 shadow-md' : 'bg-white/50 hover:bg-white/75'}`}
-                                    />
-                                  ))}
-                                </div>
-                                <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                  {viewSliderIndex + 1}/{images.length}
-                                </div>
-                              </>
-                            )}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {images.map((img, idx) => (
+                              <div
+                                key={idx}
+                                className="relative aspect-[3/4] overflow-hidden rounded-lg border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+                                onClick={() => setSelectedImage(getImageUrl(img))}
+                              >
+                                <img
+                                  src={getImageUrl(img)}
+                                  alt={`${viewItem.name} ${idx + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                {colors[idx] && (
+                                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-md uppercase tracking-wider pointer-events-none shadow-sm">
+                                    {colors[idx]}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         );
                       })()
                     ) : (
-                      <div className="w-full aspect-square flex items-center justify-center text-slate-400 flex-col">
+                      <div className="w-full h-48 flex items-center justify-center text-slate-400 flex-col bg-slate-100 dark:bg-dark-border rounded-lg">
                         <ImageIcon size={40} className="mb-2 opacity-50" />
                         <span className="text-sm font-medium">No Image</span>
                       </div>
                     )}
-                  </div>
-                </div>
-                <div className="md:w-2/3 space-y-4">
-                  <div>
-                    <h3 className="text-2xl font-semibold text-slate-800 dark:text-white">{viewItem.name}</h3>
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">{viewItem.code}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-5 pt-4 border-t border-slate-100 dark:border-dark-border">
-                    <div>
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Category</p>
-                      <p className="font-medium text-slate-800 dark:text-slate-200">{viewItem.category?.name || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Color(s)</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {viewItem.color ? viewItem.color.split(',').map((c, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-dark-bg text-slate-700 dark:text-slate-300 text-xs rounded-md border border-slate-200 dark:border-dark-border">{c.trim()}</span>
-                        )) : <span className="text-slate-400 italic text-sm">None</span>}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Rate</p>
-                      <p className="font-bold text-primary-600 dark:text-primary-400 text-lg">₹{formatPrice(viewItem.rate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">GST</p>
-                      <p className="font-medium text-slate-800 dark:text-slate-200">{viewItem.gstPercent}%</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Available Stock</p>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${viewItem.availableStock <= 0 ? 'bg-red-100 text-red-800' : viewItem.availableStock <= 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                        {viewItem.availableStock} Units in Stock
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>

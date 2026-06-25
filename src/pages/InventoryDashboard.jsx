@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getDesignsApi, getCategoriesApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Package, AlertTriangle, Search, IndianRupee, ArrowDownUp, SlidersHorizontal, Layers, Archive, Box, TrendingUp, TrendingDown, MoreHorizontal } from 'lucide-react';
+import { Package, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, Eye, Image as ImageIcon } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment } from '@mui/material';
 import Pagination from '../components/Pagination';
+import ImageZoom from '../components/ImageZoom';
 
 const Sparkline = ({ color, data }) => (
   <div className="h-10 w-24">
@@ -69,6 +70,11 @@ const InventoryDashboard = () => {
   // Pagination State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+
+  // View Modal State
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewItem, setViewItem] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -137,7 +143,7 @@ const InventoryDashboard = () => {
 
     const totalItems = result.length;
     const totalPages = Math.ceil(totalItems / limit) || 1;
-    
+
     // Slice for current page
     const paginatedResult = result.slice((page - 1) * limit, page * limit);
 
@@ -310,13 +316,14 @@ const InventoryDashboard = () => {
                   <th className="p-4 text-md font-medium">Category</th>
                   <th className="p-4 text-md font-medium">Unit Price</th>
                   <th className="p-4 text-md font-medium">Stock Level</th>
-                  <th className="p-4 pr-6 text-md font-medium">Status</th>
+                  <th className="p-4 text-md font-medium">Status</th>
+                  <th className="p-4 pr-6 text-md font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-dark-border">
                 {filteredAndSortedDesigns.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="p-16 text-center">
+                    <td colSpan="6" className="p-16 text-center">
                       <Archive className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
                       <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">No designs found</p>
                       <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
@@ -378,28 +385,171 @@ const InventoryDashboard = () => {
                             </span>
                           )}
                         </td>
+                        <td className="p-4 pr-6 text-right">
+                          <button
+                            onClick={() => { setViewItem(design); setIsViewModalOpen(true); }}
+                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
                 )}
               </tbody>
             </table>
-            
+
             {/* Pagination Controls */}
             {totalPages > 0 && (
-              <Pagination 
-                page={page} 
-                setPage={setPage} 
-                totalPages={totalPages} 
-                limit={limit} 
-                setLimit={setLimit} 
-                totalItems={totalItems} 
-                itemName="designs" 
+              <Pagination
+                page={page}
+                setPage={setPage}
+                totalPages={totalPages}
+                limit={limit}
+                setLimit={setLimit}
+                totalItems={totalItems}
+                itemName="designs"
               />
             )}
           </div>
         )}
       </div>
+
+      {/* Quick View Lightbox for Images */}
+      {selectedImage && (
+        <div className="fixed modal_main inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setSelectedImage(null)}></div>
+          <div className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center">
+            <button onClick={() => setSelectedImage(null)} className="absolute -top-10 right-0 text-white hover:text-slate-300">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <ImageZoom
+              src={selectedImage}
+              alt="Preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700/50"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* View Design Modal */}
+      {isViewModalOpen && viewItem && (
+        <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[55] p-4 transition-all">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
+                <Eye className="mr-2 text-primary-600" size={20} />
+                Design Details
+              </h2>
+              <button onClick={() => setIsViewModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="flex flex-col gap-6">
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 dark:bg-dark-bg p-5 rounded-xl border border-slate-200 dark:border-dark-border">
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{viewItem.name}</h3>
+                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">{viewItem.code}</p>
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Rate</p>
+                      <p className="font-bold text-primary-600 dark:text-primary-400 text-xl">{formatCurrency(viewItem.rate)}</p>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">GST</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200 text-lg">{viewItem.gstPercent}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm flex flex-col justify-center gap-2">
+                    <div className="flex justify-between items-center border-b border-slate-50 dark:border-dark-border pb-3">
+                      <span className="text-xs text-slate-500 font-semibold uppercase">Category</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm bg-slate-50 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">{viewItem.designcategory?.name || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-0">
+                      <span className="text-xs text-slate-500 font-semibold uppercase">Stock</span>
+                      <span className={`inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-bold shadow-sm ${viewItem.availableStock <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : viewItem.availableStock <= 20 ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                        {viewItem.availableStock} Units
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm col-span-2 md:col-span-2 flex flex-col justify-center">
+                    <p className="text-xs text-slate-500 font-semibold uppercase mb-3">Color(s)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewItem.color ? viewItem.color.split(',').map((c, i) => (
+                        <span key={i} className="px-3 py-1.5 bg-slate-50 dark:bg-dark-bg text-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">{c.trim()}</span>
+                      )) : <span className="text-slate-400 italic text-sm">None</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+                    <ImageIcon size={18} className="text-primary-500" /> Design Images
+                  </h4>
+                  <div className="rounded-xl overflow-hidden bg-slate-50 dark:bg-dark-bg border border-slate-200 dark:border-dark-border shadow-sm p-3">
+                    {viewItem.image ? (
+                      (() => {
+                        const images = viewItem.image.split(',').map(img => img.trim()).filter(Boolean);
+                        let colors = [];
+                        if (viewItem.imageColorMap) {
+                          try {
+                            const parsedColors = JSON.parse(viewItem.imageColorMap);
+                            colors = Array.isArray(parsedColors) ? parsedColors : [];
+                          } catch (e) { }
+                        }
+
+                        return (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {images.map((img, idx) => (
+                              <div
+                                key={idx}
+                                className="relative aspect-[3/4] overflow-hidden rounded-lg border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+                                onClick={() => setSelectedImage(getImageUrl(img))}
+                              >
+                                <img
+                                  src={getImageUrl(img)}
+                                  alt={`${viewItem.name} ${idx + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                {colors[idx] && (
+                                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-md uppercase tracking-wider pointer-events-none shadow-sm">
+                                    {colors[idx]}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="w-full h-48 flex items-center justify-center text-slate-400 flex-col bg-slate-100 dark:bg-dark-border rounded-lg">
+                        <ImageIcon size={40} className="mb-2 opacity-50" />
+                        <span className="text-sm font-medium">No Image</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end px-6 py-4 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
+              <button type="button" onClick={() => setIsViewModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

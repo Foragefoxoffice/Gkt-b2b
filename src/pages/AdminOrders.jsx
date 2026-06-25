@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi } from '../Action/api';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, Clock, Search, SlidersHorizontal, User, Calendar, Truck, MessageSquare } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi, deleteOrderApi } from '../Action/api';
+import { ShoppingCart, Eye, CheckCircle, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, Clock, Search, SlidersHorizontal, User, Calendar, Truck, MessageSquare, Trash2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Select } from '@mui/material';
@@ -91,7 +92,7 @@ const getImageUrl = (path) => {
 };
 
 const AdminOrders = () => {
-
+  const { user } = useSelector(state => state.auth);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -177,20 +178,25 @@ const AdminOrders = () => {
     const { orderId, status: newStatus } = confirmDialog;
     setConfirmDialog({ open: false, orderId: null, status: '' });
     try {
-      await updateOrderStatusApi(orderId, { status: newStatus, remarks });
-      toast.success(`Order ${newStatus.toLowerCase()} successfully`);
-      if (newStatus === 'CANCELLED') {
-        const audio = new Audio(orderCanceledSound);
-        audio.play().catch(e => console.log('Audio playback failed:', e));
-      }
-      if (newStatus === 'PROCESSING') {
-        window.dispatchEvent(new Event('dispatchesUpdated'));
+      if (newStatus === 'DELETE') {
+        await deleteOrderApi(orderId);
+        toast.success(`Order deleted successfully`);
+      } else {
+        await updateOrderStatusApi(orderId, { status: newStatus, remarks });
+        toast.success(`Order ${newStatus.toLowerCase()} successfully`);
+        if (newStatus === 'CANCELLED') {
+          const audio = new Audio(orderCanceledSound);
+          audio.play().catch(e => console.log('Audio playback failed:', e));
+        }
+        if (newStatus === 'PROCESSING') {
+          window.dispatchEvent(new Event('dispatchesUpdated'));
+        }
       }
       closeModal();
       setRemarks('');
       fetchOrders();
     } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${newStatus.toLowerCase()} order`);
+      toast.error(err.response?.data?.message || `Failed to ${newStatus === 'DELETE' ? 'delete' : newStatus.toLowerCase()} order`);
     }
   };
 
@@ -817,6 +823,13 @@ const AdminOrders = () => {
                     </button>
                   </div>
                 )}
+                {selectedOrder.status === 'CANCELLED' && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                  <div className="flex space-x-3">
+                    <button onClick={() => handleUpdateStatus(selectedOrder.id, 'DELETE')} className="px-6 py-2.5 text-sm font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl shadow-sm transition-all flex items-center hover:-translate-y-0.5">
+                      <Trash2 size={18} className="mr-2" /> Delete Order
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -827,11 +840,11 @@ const AdminOrders = () => {
         open={confirmDialog.open}
         onConfirm={executeUpdateStatus}
         onCancel={() => setConfirmDialog({ open: false, orderId: null, status: '' })}
-        title={confirmDialog.status === 'CANCELLED' ? 'Reject this order?' : 'Approve this order?'}
-        message={confirmDialog.status === 'CANCELLED' ? 'This action will reject the order, return the items to stock, and notify the buyer. This cannot be undone.' : 'This will approve the order and move it to dispatches.'}
-        confirmText={confirmDialog.status === 'CANCELLED' ? 'Yes, Reject' : 'Yes, Approve'}
+        title={confirmDialog.status === 'CANCELLED' ? 'Reject this order?' : confirmDialog.status === 'DELETE' ? 'Delete this order?' : 'Approve this order?'}
+        message={confirmDialog.status === 'CANCELLED' ? 'This action will reject the order, return the items to stock, and notify the buyer. This cannot be undone.' : confirmDialog.status === 'DELETE' ? 'This will permanently delete the canceled order. This cannot be undone.' : 'This will approve the order and move it to dispatches.'}
+        confirmText={confirmDialog.status === 'CANCELLED' ? 'Yes, Reject' : confirmDialog.status === 'DELETE' ? 'Yes, Delete' : 'Yes, Approve'}
         cancelText="Go Back"
-        variant={confirmDialog.status === 'CANCELLED' ? 'danger' : 'success'}
+        variant={confirmDialog.status === 'CANCELLED' || confirmDialog.status === 'DELETE' ? 'danger' : 'success'}
       />
 
       <AnimatePresence>
