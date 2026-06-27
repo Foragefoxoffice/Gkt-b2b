@@ -56,6 +56,12 @@ export const useSocketNotification = () => {
     const handleNotification = (data) => {
       console.log('Received notification:', data);
       
+      if (window.pauseNotifications) {
+        if (!window.pendingNotifications) window.pendingNotifications = [];
+        window.pendingNotifications.push(data);
+        return;
+      }
+      
       // Play sound based on notification type
       const audioToPlay = audioInstances[data.type] || audioInstances.MAIN;
       if (audioToPlay) {
@@ -146,6 +152,15 @@ export const useSocketNotification = () => {
 
     socket.on('notification', handleNotification);
     
+    // Expose global function to resume notifications
+    window.resumeNotifications = () => {
+      window.pauseNotifications = false;
+      if (window.pendingNotifications) {
+        window.pendingNotifications.forEach(data => handleNotification(data));
+        window.pendingNotifications = [];
+      }
+    };
+    
     // Listen for raw inventory updates
     const handleInventoryUpdate = () => {
       window.dispatchEvent(new Event('inventoryUpdated'));
@@ -162,6 +177,7 @@ export const useSocketNotification = () => {
       socket.off('notification', handleNotification);
       socket.off('inventoryUpdated', handleInventoryUpdate);
       socket.off('productRequestsUpdated', handleProductRequestsUpdate);
+      delete window.resumeNotifications;
     };
   }, [socket]);
 };

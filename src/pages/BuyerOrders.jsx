@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getOrdersApi, updateOrderStatusApi, getOrderByIdApi, addToCartApi } from '../Action/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Clock, Eye, RefreshCw, ShoppingCart, XCircle, Package, TrendingUp, TrendingDown, MoreHorizontal, FileText, Search, SlidersHorizontal, Calendar, Truck, MessageSquare, CheckCircle, PackageCheck, Download, User, Phone } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
@@ -91,7 +91,7 @@ const getImageUrl = (path) => {
 
 const BuyerOrders = () => {
   const navigate = useNavigate();
-
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -163,6 +163,14 @@ const BuyerOrders = () => {
     return () => window.removeEventListener('ordersUpdated', handleOrdersUpdated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, searchTerm, statusFilter, sortBy]);
+
+  useEffect(() => {
+    if (location.state?.orderId) {
+      handleViewOrder(location.state.orderId);
+      window.history.replaceState({}, document.title);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const handleCancelOrder = (orderId) => {
     setConfirmCancelId(orderId);
@@ -627,8 +635,12 @@ const BuyerOrders = () => {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Transporter</p>
-                        <p className="font-semibold text-slate-800 dark:text-white text-lg">{selectedOrder.transporter?.name || <span className="text-slate-400 italic font-medium">Unassigned</span>}</p>
-                        <p className="text-sm text-slate-500 mt-0.5">{selectedOrder.transporter?.mobile || <span className="text-slate-400 italic font-medium">Unassigned</span>}</p>
+                        <p className="font-semibold text-slate-800 dark:text-white text-lg">
+                          {selectedOrder.transporter?.name || 
+                           (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/)?.[1]?.trim()) || 
+                           <span className="text-slate-400 italic font-medium">Unassigned</span>}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-0.5">{selectedOrder.transporter?.mobile || (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/) ? <span className="text-slate-400 italic font-medium">Custom</span> : <span className="text-slate-400 italic font-medium">Unassigned</span>)}</p>
                       </div>
                     </div>
                   </div>

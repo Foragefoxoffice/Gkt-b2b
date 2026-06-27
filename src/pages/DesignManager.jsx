@@ -373,6 +373,15 @@ const DesignManager = () => {
   };
 
   const removeImage = (index) => {
+    const colorToRemove = combinedImages[index]?.color;
+    if (colorToRemove) {
+      setFormData(prev => {
+        const newStocks = { ...prev.colorStocks };
+        delete newStocks[colorToRemove];
+        return { ...prev, colorStocks: newStocks };
+      });
+    }
+
     setCombinedImages(prev => {
       const newImages = [...prev];
       if (newImages[index].type === 'new') {
@@ -861,20 +870,7 @@ const DesignManager = () => {
                       <TextField type="number" label="GST %" value={formData.gstPercent} onChange={e => setFormData({ ...formData, gstPercent: e.target.value })} inputProps={{ step: "0.01" }} />
                       <TextField label="Material" value={formData.material || ''} onChange={e => setFormData({ ...formData, material: e.target.value })} />
                     </div>
-                    {Object.keys(formData.colorStocks || {}).length > 0 && (
-                      <div className="grid grid-cols-1">
-                        <TextField
-                          type="number"
-                          label="Available Stock"
-                          value={Object.values(formData.colorStocks || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)}
-                          disabled
-                          InputProps={{
-                            readOnly: true,
-                          }}
-                          helperText="Auto-calculated from variant quantities"
-                        />
-                      </div>
-                    )}
+
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Images</label>
                       <div className="flex flex-col gap-4">

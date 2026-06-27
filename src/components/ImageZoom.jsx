@@ -27,17 +27,17 @@ const ImageZoom = ({ src, alt, className, onClick, style, imgStyle }) => {
   };
 
   return (
-    <div 
-      className="overflow-hidden rounded-lg cursor-zoom-in flex items-center justify-center" 
+    <div
+      className="overflow-hidden rounded-lg flex items-center justify-center"
       style={{ width: '100%', height: '100%', ...style }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
       onClick={onClick}
     >
       <img
         src={src}
         alt={alt}
-        className={className}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className={`${className} hover:cursor-zoom-in`}
         style={{
           ...zoomStyle,
           display: 'block',

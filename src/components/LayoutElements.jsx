@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
-import { getAdminDashboardApi } from '../Action/api';
+import { getAdminDashboardApi, getCartApi } from '../Action/api';
 import {
   LayoutDashboard, Users, ShoppingCart, Settings,
   LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building, Shield
@@ -200,10 +200,12 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
 
 export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
   const { user } = useSelector(state => state.auth);
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllModal, setShowAllModal] = useState(false);
   const notifRef = React.useRef(null);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const handleNewNotification = (e) => {
@@ -218,9 +220,27 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
     };
     document.addEventListener('mousedown', handleClickOutside);
 
+    const fetchCartCount = async () => {
+      if (!window.location.pathname.startsWith('/buyer')) return;
+      try {
+        const res = await getCartApi();
+        if (res.data?.success && res.data.data.cart?.items) {
+          setCartCount(res.data.data.cart.items.length);
+        } else {
+          setCartCount(0);
+        }
+      } catch (error) {
+        // ignore
+      }
+    };
+
+    fetchCartCount();
+    window.addEventListener('cartUpdated', fetchCartCount);
+
     return () => {
       window.removeEventListener('newNotification', handleNewNotification);
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('cartUpdated', fetchCartCount);
     };
   }, []);
 
@@ -256,6 +276,20 @@ export const Topbar = ({ toggleSidebar, toggleTheme, isDark }) => {
           <button onClick={toggleTheme} className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-dark-border transition-colors">
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+
+          {window.location.pathname.startsWith('/buyer') && (
+            <button
+              onClick={() => navigate('/buyer/cart')}
+              className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-dark-border transition-colors relative"
+            >
+              <ShoppingCart size={18} />
+              {cartCount > 0 && (
+                <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 bg-[#e2148d] text-white text-[9px] font-bold rounded-full border-2 border-white dark:border-dark-card shadow-sm">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
+          )}
 
           <div className="relative" ref={notifRef}>
             <button

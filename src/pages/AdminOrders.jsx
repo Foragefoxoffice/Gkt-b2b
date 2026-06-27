@@ -622,7 +622,12 @@ const AdminOrders = () => {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Transporter</p>
-                        <p className="font-semibold text-slate-800 dark:text-white text-lg">{selectedOrder.transporter?.name || <span className="text-slate-400 font-medium text-md">Unassigned</span>}</p>
+                        <p className="font-semibold text-slate-800 dark:text-white text-lg">
+                          {selectedOrder.transporter?.name || 
+                           (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/)?.[1]?.trim()) || 
+                           <span className="text-slate-400 font-medium text-md">Unassigned</span>}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-0.5">{selectedOrder.transporter?.mobile || (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/) ? <span className="text-slate-400 italic font-medium">Custom</span> : null)}</p>
                       </div>
                     </div>
                   </div>

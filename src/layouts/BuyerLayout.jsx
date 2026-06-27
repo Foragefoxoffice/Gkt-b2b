@@ -11,6 +11,7 @@ import { Topbar, SidebarItem } from '../components/LayoutElements';
 import { getCartApi, getOrdersApi } from '../Action/api';
 import { useSocketNotification } from '../hooks/useSocketNotification.jsx';
 import logo from '../assets/AmbigaaSilks_logo.png';
+import smtLogo from '../assets/SMT_logo.png';
 
 const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
   const dispatch = useDispatch();
@@ -103,11 +104,9 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         {!collapsed && <div className="flex h-18 items-center justify-between px-6 py-2 shrink-0">
           <div className="flex items-center overflow-hidden w-full">
             <div className="logo-flip-container h-20 w-20 shrink-0 mr-2">
-              <div className={user?.companyLogo ? "logo-flip-wrapper" : "h-full w-full relative"}>
-                <img src={logo} alt="Platform Logo" className={user?.companyLogo ? "logo-flip-front" : "absolute inset-0 w-full h-full object-contain"} />
-                {user?.companyLogo && (
-                  <img src={user.companyLogo.startsWith('http') ? user.companyLogo : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${user.companyLogo.startsWith('/') ? '' : '/'}${user.companyLogo}`} alt="Company Logo" className="logo-flip-back" />
-                )}
+              <div className="logo-flip-wrapper">
+                <img src={logo} alt="Ambigaa Silks Logo" className="logo-flip-front" />
+                <img src={smtLogo} alt="Sri Malakhs Textile Logo" className="logo-flip-back" />
               </div>
             </div>
             <span className="font-bold text-md tracking-tight text-slate-800 dark:text-white leading-tight">AGS-SMT <br></br>B2B PORTAL</span>

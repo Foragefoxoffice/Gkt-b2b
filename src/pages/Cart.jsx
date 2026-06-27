@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, Truck, ShoppingCart, PackageCheck, ArrowRight, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import orderPlacedSound from '../assets/order_placed.mp3';
 import TruckButton from '../components/TruckButton';
 import { Select, MenuItem, TextField } from '@mui/material';
 import ImageZoom from '../components/ImageZoom';
@@ -181,6 +180,7 @@ const Cart = () => {
     }
 
     setIsCheckingOut(true);
+    window.pauseNotifications = true; // Pause websocket notifications so they don't pop up before animation
     try {
       let finalRemarks = remarks;
       if (selectedTransporter === 'other' && customTransporter.trim()) {
@@ -222,14 +222,21 @@ const Cart = () => {
         toast.error(errMsg || 'Failed to place order');
       }
       setIsCheckingOut(false);
+      window.pauseNotifications = false;
+      if (window.resumeNotifications) window.resumeNotifications();
       return Promise.reject(err);
     }
   };
 
   const handleAnimationComplete = () => {
-    const audio = new Audio(orderPlacedSound);
-    audio.play().catch(e => console.log('Audio playback failed:', e));
     setShowSuccessModal(true);
+    // Resume notifications after modal shows, triggering the sound and toast
+    if (window.resumeNotifications) {
+      window.resumeNotifications();
+    } else {
+      window.pauseNotifications = false;
+    }
+
     setTimeout(() => {
       navigate('/buyer/orders');
     }, 3500);
@@ -277,10 +284,10 @@ const Cart = () => {
           </button>
         </motion.div>
       ) : (
-        <div className="lg:grid lg:grid-cols-12 lg:gap-10">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-10 items-start">
           {/* Cart Items */}
-          <div className="lg:col-span-7 xl:col-span-8 mb-10 lg:mb-0">
-            <div className="bg-white dark:bg-dark-card rounded-3xl shadow-sm border border-slate-100 dark:border-dark-border overflow-hidden">
+          <div className="lg:col-span-7 xl:col-span-8 mb-10 lg:mb-0 sticky top-20 z-10">
+            <div className="bg-white dark:bg-dark-card rounded-3xl shadow-sm border border-slate-100 dark:border-dark-border overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto sidebar-scroll">
               <div className="p-5 border-b border-slate-100 dark:border-dark-border flex justify-between items-center bg-slate-50/50 dark:bg-dark-bg/50">
                 <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                   Items ({cartData.items.length})
@@ -408,7 +415,7 @@ const Cart = () => {
                         ))}
                       </div>
 
-                      <div className="mt-4 pt-3 flex justify-end items-center border-t border-slate-100 dark:border-dark-border/50">
+                      <div className="mt-4 pt-4 pb-4 flex justify-end items-center border-t border-slate-100 dark:border-dark-border/50 sticky bottom-0 bg-white dark:bg-dark-card z-10 -mx-6 px-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
                         <span className="text-sm text-slate-500 mr-3">Subtotal ({group.totalQuantity} items):</span>
                         <span className="font-bold text-lg text-slate-800 dark:text-white">₹{formatPrice(group.totalPrice.toFixed(2))}</span>
                       </div>
