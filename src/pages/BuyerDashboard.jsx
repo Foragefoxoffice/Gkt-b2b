@@ -149,7 +149,7 @@ const BuyerDashboard = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
-          Welcome back, TexStyle Traders <span className="ml-2 text-2xl wave">👋</span>
+          Welcome back, Buyer <span className="ml-2 text-2xl wave">👋</span>
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here's what's happening with your account today.</p>
       </div>
