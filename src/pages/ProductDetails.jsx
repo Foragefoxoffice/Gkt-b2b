@@ -70,7 +70,7 @@ const VariantCard = ({ product, color, stock, image, cartItems, onCartUpdated, o
                             className="w-20 h-20 rounded-full border-4 border-white dark:border-dark-border shadow-md mb-4 transform group-hover:scale-110 transition-transform duration-500"
                             style={{ background: getBgStyle() }}
                         />
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-2">
+                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-2">
                             {color || 'No Image'}
                         </span>
                     </div>

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
-import { getAdminDashboardApi, getCartApi } from '../Action/api';
+import { getAdminDashboardApi, getCartApi, logoutApi } from '../Action/api';
 import {
   LayoutDashboard, Users, ShoppingCart, Settings,
-  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building, Shield
+  LogOut, Menu, Moon, Sun, Search, Bell, Package, X, Truck, ClipboardList, Zap, Navigation, Building, Shield, Activity
 } from 'lucide-react';
 import logo from '../assets/AmbigaaSilks_logo.png';
 import smtLogo from '../assets/SMT_logo.png';
@@ -67,7 +67,12 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.error("Logout error", error);
+    }
     dispatch(logout());
     navigate('/login');
   };
@@ -101,6 +106,7 @@ export const AdminSidebar = ({ collapsed, toggleCollapse, mobileOpen, setMobileO
       title: 'SUPPORT',
       items: [
         { icon: Shield, label: 'Staff & Roles', to: '/admin/staff', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { icon: Activity, label: 'Buyer Logs', to: '/admin/buyer-logs', roles: ['ADMIN', 'SUPER_ADMIN'] },
         { icon: Settings, label: 'Settings', to: '/admin/settings', roles: ['ADMIN', 'SUPER_ADMIN'] },
       ]
     }

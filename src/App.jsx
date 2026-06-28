@@ -24,10 +24,12 @@ import TransporterManager from './pages/TransporterManager.jsx';
 import Company from './pages/Company.jsx';
 import AdminSettings from './pages/AdminSettings.jsx';
 import StaffManager from './pages/StaffManager.jsx';
+import BuyerLogs from './pages/BuyerLogs.jsx';
 
 import DesignCatalog from './pages/DesignCatalog.jsx';
 import Cart from './pages/Cart.jsx';
 import BuyerOrders from './pages/BuyerOrders.jsx';
+import BuyerRequests from './pages/BuyerRequests.jsx';
 import Products from './pages/Products.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
 
@@ -98,6 +100,7 @@ function App() {
             <Route path="/admin/transporters" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'DISPATCHER']}><TransporterManager /></PrivateRoute>} />
             <Route path="/admin/staff" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}><StaffManager /></PrivateRoute>} />
             <Route path="/admin/settings" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}><AdminSettings /></PrivateRoute>} />
+            <Route path="/admin/buyer-logs" element={<PrivateRoute roles={['ADMIN', 'SUPER_ADMIN']}><BuyerLogs /></PrivateRoute>} />
           </Route>
 
           <Route element={
@@ -109,6 +112,7 @@ function App() {
             <Route path="/buyer/designs" element={<DesignCatalog />} />
             <Route path="/buyer/cart" element={<Cart />} />
             <Route path="/buyer/orders" element={<BuyerOrders />} />
+            <Route path="/buyer/requests" element={<BuyerRequests />} />
             <Route path="/buyer/products" element={<Products />} />
             <Route path="/buyer/product/:id" element={<ProductDetails />} />
             <Route path="/buyer/settings" element={<AdminSettings />} />

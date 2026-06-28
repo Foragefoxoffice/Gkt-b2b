@@ -97,7 +97,7 @@ export const useSocketNotification = () => {
       const getIcon = (type) => {
         if (type?.startsWith('ORDER')) return <ShoppingCart className="h-5 w-5 text-white" />;
         if (type?.startsWith('DISPATCH')) return <Truck className="h-5 w-5 text-white" />;
-        if (type === 'STOCK_UPDATED') return <Package className="h-5 w-5 text-white" />;
+        if (type === 'STOCK_UPDATED' || type?.startsWith('PRODUCT_REQUEST')) return <Package className="h-5 w-5 text-white" />;
         return <Bell className="h-5 w-5 text-white" />;
       };
 
@@ -106,7 +106,7 @@ export const useSocketNotification = () => {
         if (type === 'ORDER_PROCESSING') return 'from-blue-400 to-blue-600 shadow-blue-500/30';
         if (type === 'ORDER_CANCELLED') return 'from-rose-400 to-rose-600 shadow-rose-500/30';
         if (type?.startsWith('DISPATCH')) return 'from-purple-400 to-purple-600 shadow-purple-500/30';
-        if (type === 'STOCK_UPDATED') return 'from-amber-400 to-amber-600 shadow-amber-500/30';
+        if (type === 'STOCK_UPDATED' || type?.startsWith('PRODUCT_REQUEST')) return 'from-amber-400 to-amber-600 shadow-amber-500/30';
         return 'from-indigo-400 to-indigo-600 shadow-indigo-500/30';
       };
 

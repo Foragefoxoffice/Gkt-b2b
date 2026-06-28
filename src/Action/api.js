@@ -85,6 +85,10 @@ api.interceptors.response.use(
 
 // Auth APIs
 export const loginApi = (data) => api.post('/auth/login', data);
+export const logoutApi = () => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  return api.post('/auth/logout', { refreshToken });
+};
 export const verifyOtpApi = (data) => api.post('/auth/verify-otp', data);
 export const forgotPasswordApi = (data) => api.post('/auth/forgot-password', data);
 export const resetPasswordApi = (data) => api.post('/auth/reset-password', data);
@@ -174,5 +178,8 @@ export const updateProductRequestStatusApi = (id, data) => api.put(`/product-req
 export const getDispatchesApi = (params) => api.get('/dispatches', { params });
 export const createDispatchApi = (data) => api.post('/dispatches', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateDispatchStatusApi = (id, data) => api.put(`/dispatches/${id}/status`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {});
+
+// User Logs APIs
+export const getBuyerLogsApi = (params) => api.get('/user-logs/buyers', { params });
 
 export default api;

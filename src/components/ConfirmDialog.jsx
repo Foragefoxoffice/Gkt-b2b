@@ -60,6 +60,7 @@ const ConfirmDialog = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'danger',
+  children,
 }) => {
   const config = variantConfig[variant] || variantConfig.danger;
   const IconComponent = config.icon;
@@ -107,6 +108,13 @@ const ConfirmDialog = ({
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center leading-relaxed max-w-sm mx-auto">
                   {message}
                 </p>
+              )}
+
+              {/* Children (e.g., input fields) */}
+              {children && (
+                <div className="mt-5 max-w-sm mx-auto">
+                  {children}
+                </div>
               )}
             </div>
 

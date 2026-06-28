@@ -8,7 +8,7 @@ import {
   LogOut, X, Package, Zap, Tag, Settings
 } from 'lucide-react';
 import { Topbar, SidebarItem } from '../components/LayoutElements';
-import { getCartApi, getOrdersApi } from '../Action/api';
+import { getCartApi, getOrdersApi, getProductRequestsApi, logoutApi } from '../Action/api';
 import { useSocketNotification } from '../hooks/useSocketNotification.jsx';
 import logo from '../assets/AmbigaaSilks_logo.png';
 import smtLogo from '../assets/SMT_logo.png';
@@ -19,6 +19,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
   const { user } = useSelector(state => state.auth);
   const [cartCount, setCartCount] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     const fetchCartCount = async () => {
@@ -46,19 +47,39 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
         console.error("Failed to fetch order count", error);
       }
     };
+    const fetchRequestCount = async () => {
+      try {
+        const res = await getProductRequestsApi({ status: 'PENDING' });
+        if (res.data?.success && res.data.pagination) {
+          setRequestCount(res.data.pagination.total);
+        } else {
+          setRequestCount(0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch request count", error);
+      }
+    };
 
     fetchCartCount();
     fetchOrderCount();
+    fetchRequestCount();
 
     window.addEventListener('cartUpdated', fetchCartCount);
     window.addEventListener('ordersUpdated', fetchOrderCount);
+    window.addEventListener('productRequestsUpdated', fetchRequestCount);
     return () => {
       window.removeEventListener('cartUpdated', fetchCartCount);
       window.removeEventListener('ordersUpdated', fetchOrderCount);
+      window.removeEventListener('productRequestsUpdated', fetchRequestCount);
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.error("Logout error", error);
+    }
     dispatch(logout());
     navigate('/login');
   };
@@ -82,6 +103,7 @@ const BuyerSidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       title: 'HISTORY',
       items: [
         { icon: Clock, label: 'Order History', to: '/buyer/orders', badge: orderCount > 0 ? orderCount : null },
+        { icon: Zap, label: 'Product Requests', to: '/buyer/requests', badge: requestCount > 0 ? requestCount : null },
       ]
     },
     {

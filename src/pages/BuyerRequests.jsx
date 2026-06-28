@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
+import { getProductRequestsApi, getProductRequestByIdApi } from '../Action/api';
 import { Link } from 'react-router-dom';
-import { getProductRequestsApi, getProductRequestByIdApi, updateProductRequestStatusApi } from '../Action/api';
-import { Eye, CheckCircle, XCircle, Package, Clock, Search, SlidersHorizontal, User, Calendar, MessageSquare, Zap } from 'lucide-react';
+import { Package, Eye, Clock, Search, SlidersHorizontal, User, Calendar, MessageSquare, Zap, CheckCircle, PackageCheck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Select } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import ConfirmDialog from '../components/ConfirmDialog';
 import ImageZoom from '../components/ImageZoom';
 
 const getImageUrl = (path) => {
@@ -32,22 +31,98 @@ const getVariantImage = (design, colorName) => {
           return imagesList[colorIndex];
         }
       }
-    } catch (e) {
-      console.error('Error parsing imageColorMap', e);
-    }
+    } catch (e) { }
   }
   return imagesList[0] || '';
 };
 
-const AdminRequests = () => {
+// Request Stepper Component
+const RequestStepper = ({ status }) => {
+  // Define steps
+  const steps = [
+    { key: 'PENDING', label: 'Pending', description: 'Request submitted for review' },
+    { key: 'PROCESSING', label: 'Processing', description: 'Request approved & in production' },
+    { key: 'COMPLETED', label: 'Completed', description: 'Items are ready for order' }
+  ];
+
+  // Map backend status to stepper index
+  let currentIndex = 0;
+  if (status === 'PENDING') currentIndex = 0;
+  if (status === 'APPROVED') currentIndex = 1;
+  if (status === 'COMPLETED') currentIndex = 2;
+
+  const isRejected = status === 'REJECTED';
+
+  if (isRejected) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-3">
+          <AlertCircle size={32} />
+        </div>
+        <h3 className="text-xl font-bold text-red-700">Request Rejected</h3>
+        <p className="text-red-600 mt-1 max-w-sm">This product request was rejected by the administrator. Please contact support for more details.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl p-6 md:p-8">
+      <h3 className="font-semibold text-slate-800 dark:text-white text-lg mb-6 flex items-center">
+        <Zap size={20} className="mr-2 text-primary-600" /> Request Status
+      </h3>
+
+      <div className="relative">
+        {/* Connecting line */}
+        <div className="absolute top-6 left-12 right-12 h-1 bg-slate-200 dark:bg-dark-border rounded-full hidden sm:block"></div>
+        <div
+          className="absolute top-6 left-12 h-1 bg-primary-600 rounded-full transition-all duration-500 hidden sm:block"
+          style={{ width: `calc(${(currentIndex / (steps.length - 1)) * 100}% - 24px)` }}
+        ></div>
+
+        <div className="flex flex-col sm:flex-row justify-between relative z-10 space-y-6 sm:space-y-0">
+          {steps.map((step, index) => {
+            const isActive = index <= currentIndex;
+            const isCurrent = index === currentIndex;
+
+            return (
+              <div key={step.key} className="flex flex-col items-center text-center relative flex-1">
+                {/* Mobile connecting line */}
+                {index !== steps.length - 1 && (
+                  <div className={`absolute top-6 left-1/2 w-0.5 h-full -z-10 sm:hidden ${isActive ? 'bg-primary-600' : 'bg-slate-200 dark:bg-dark-border'}`}></div>
+                )}
+
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center border-4 border-white dark:border-dark-card shadow-sm transition-colors duration-300 z-10 ${isActive ? 'bg-primary-600 text-white shadow-primary-600/30' : 'bg-slate-100 text-slate-400 dark:bg-dark-bg dark:text-slate-500'
+                    } ${isCurrent ? 'ring-4 ring-primary-100 dark:ring-primary-900/30' : ''}`}
+                >
+                  {index === 0 && <Clock size={20} />}
+                  {index === 1 && <PackageCheck size={20} />}
+                  {index === 2 && <CheckCircle size={20} />}
+                </div>
+
+                <div className="mt-3">
+                  <h4 className={`font-bold ${isActive ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {step.label}
+                  </h4>
+                  <p className={`text-xs mt-1 max-w-[120px] mx-auto ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BuyerRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
-
-  // Confirm dialog state
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, requestId: null, status: '', remark: '' });
 
   // Filtering states
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,7 +157,6 @@ const AdminRequests = () => {
     }
   };
 
-  // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearchTerm(searchInput);
@@ -96,32 +170,10 @@ const AdminRequests = () => {
   }, [page, limit, searchTerm, statusFilter]);
 
   useEffect(() => {
-    const handleRequestsUpdated = () => {
-      fetchRequests();
-    };
+    const handleRequestsUpdated = () => fetchRequests();
     window.addEventListener('productRequestsUpdated', handleRequestsUpdated);
     return () => window.removeEventListener('productRequestsUpdated', handleRequestsUpdated);
   }, [page, limit, searchTerm, statusFilter]);
-
-  const handleUpdateStatus = (requestId, newStatus) => {
-    setConfirmDialog({ open: true, requestId, status: newStatus, remark: '' });
-  };
-
-  const executeUpdateStatus = async () => {
-    const { requestId, status: newStatus, remark } = confirmDialog;
-    setConfirmDialog({ open: false, requestId: null, status: '', remark: '' });
-    try {
-      let payload = { status: newStatus, adminRemarks: remark };
-
-      await updateProductRequestStatusApi(requestId, payload);
-      toast.success(`Request ${newStatus.toLowerCase()} successfully`);
-
-      closeModal();
-      fetchRequests();
-    } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to update request status`);
-    }
-  };
 
   const handleViewRequest = async (requestId) => {
     try {
@@ -142,9 +194,9 @@ const AdminRequests = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'PENDING': return 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50';
-      case 'APPROVED': return 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50';
+      case 'APPROVED': return 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50';
       case 'REJECTED': return 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/50';
-      case 'COMPLETED': return 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50';
+      case 'COMPLETED': return 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50';
       default: return 'bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50';
     }
   };
@@ -162,13 +214,8 @@ const AdminRequests = () => {
     } else {
       let start = Math.max(1, page - 2);
       let end = Math.min(totalPages, page + 2);
-
-      if (start === 1) {
-        end = maxVisible;
-      } else if (end === totalPages) {
-        start = totalPages - maxVisible + 1;
-      }
-
+      if (start === 1) end = maxVisible;
+      else if (end === totalPages) start = totalPages - maxVisible + 1;
       for (let i = start; i <= end; i++) pages.push(i);
     }
     return pages;
@@ -191,14 +238,13 @@ const AdminRequests = () => {
     <div className="space-y-6 mx-auto">
       <div className="flex justify-between items-center mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
-            <Zap className="mr-3 text-amber-500" /> Production Requests
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
+            <Zap className="mr-3 text-amber-500" /> My Product Requests
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Review custom weaving and out-of-stock product requests submitted by buyers.</p>
+          <p className="text-sm text-slate-500 mt-1">Track the status of your requested products and custom weaving.</p>
         </div>
       </div>
 
-      {/* Advanced Filters */}
       <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-dark-border">
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center mb-6">
           <div className="flex items-center gap-2 text-slate-800 dark:text-white font-medium">
@@ -208,7 +254,7 @@ const AdminRequests = () => {
             <TextField
               fullWidth
               size="small"
-              placeholder="Search by ID, buyer name..."
+              placeholder="Search by Request ID..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               InputProps={{
@@ -234,8 +280,8 @@ const AdminRequests = () => {
             <MenuItem value="ALL">All Statuses</MenuItem>
             <MenuItem value="PENDING">Pending</MenuItem>
             <MenuItem value="APPROVED">Processing</MenuItem>
-            <MenuItem value="REJECTED">Rejected</MenuItem>
             <MenuItem value="COMPLETED">Completed</MenuItem>
+            <MenuItem value="REJECTED">Rejected</MenuItem>
           </TextField>
         </div>
       </div>
@@ -252,7 +298,7 @@ const AdminRequests = () => {
               <Package size={40} className="text-slate-300 dark:text-slate-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">No Requests Found</h3>
-            <p className="text-slate-500 max-w-md">There are no product requests matching your current filters.</p>
+            <p className="text-slate-500 max-w-md">You have no product requests matching your current filters.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -260,7 +306,6 @@ const AdminRequests = () => {
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-dark-bg/80 border-b border-slate-100 dark:border-dark-border text-md font-medium text-slate-600 dark:text-slate-300">
                   <th className="p-4 pl-6 text-md font-medium">Request No.</th>
-                  <th className="p-4 text-md font-medium">Buyer Info</th>
                   <th className="p-4 text-md font-medium">Requested Items</th>
                   <th className="p-4 text-md font-medium">Remarks</th>
                   <th className="p-4 text-md font-medium">Date</th>
@@ -281,11 +326,7 @@ const AdminRequests = () => {
                     className="hover:bg-slate-50/50 dark:hover:bg-dark-bg/50 transition-colors group"
                   >
                     <td className="p-4 pl-6">
-                      <span className="font-bold text-slate-800 dark:text-white bg-slate-100 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-200 dark:border-dark-border font-mono text-xs">{req.requestNumber}</span>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-semibold text-slate-800 dark:text-white text-md">{req.buyer?.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono bg-slate-100 dark:bg-dark-bg inline-block px-1.5 py-0.5 rounded border border-slate-200 dark:border-dark-border">{req.buyer?.code || 'B2B Client'}</p>
+                      <span className="font-semibold text-slate-800 dark:text-white bg-slate-100 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-200 dark:border-dark-border font-mono text-xs">{req.requestNumber}</span>
                     </td>
                     <td className="p-4 text-sm font-medium text-slate-600 dark:text-slate-300">
                       {req.items?.length > 0 ? (
@@ -314,16 +355,9 @@ const AdminRequests = () => {
                       </span>
                     </td>
                     <td className="p-4 pr-6">
-                      <div className="flex justify-end gap-2">
-                        {req.status === 'APPROVED' && (
-                          <button onClick={() => handleUpdateStatus(req.id, 'COMPLETED')} className="flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400 transition-all" title="Mark Completed">
-                            <CheckCircle size={14} className="mr-1.5" />
-                            Complete
-                          </button>
-                        )}
-                        <button onClick={() => handleViewRequest(req.id)} className={`flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${req.status === 'PENDING' ? 'text-white bg-amber-600 hover:bg-amber-500 shadow-sm hover:-translate-y-0.5' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 dark:text-indigo-400'}`} title={req.status === 'PENDING' ? 'Review & Process' : 'View Details'}>
-                          <Eye size={14} className="mr-1.5" />
-                          {req.status === 'PENDING' ? 'Review' : 'View'}
+                      <div className="flex justify-end">
+                        <button onClick={() => handleViewRequest(req.id)} className="flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 dark:text-indigo-400 transition-all" title="View Details">
+                          <Eye size={14} className="mr-1.5" /> View
                         </button>
                       </div>
                     </td>
@@ -332,7 +366,6 @@ const AdminRequests = () => {
               </motion.tbody>
             </table>
 
-            {/* Pagination Controls */}
             {!loading && total > 0 && (
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-slate-200 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20">
                 <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -408,7 +441,6 @@ const AdminRequests = () => {
         )}
       </div>
 
-      {/* Request Details & Action Modal */}
       <AnimatePresence>
         {isModalOpen && selectedRequest && (
           <div className="fixed modal_main inset-0 z-[60] flex items-center justify-center p-4">
@@ -429,7 +461,7 @@ const AdminRequests = () => {
               <div className="flex justify-between items-center px-8 py-5 border-b border-slate-100 dark:border-dark-border bg-slate-50/80 dark:bg-dark-bg/50 shrink-0">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-800 dark:text-white flex items-center">
-                    Review Production Request
+                    Request Details
                   </h2>
                   <p className="text-sm text-slate-500 font-mono mt-1">{selectedRequest.requestNumber}</p>
                 </div>
@@ -442,21 +474,23 @@ const AdminRequests = () => {
               </div>
 
               <div className="p-6 overflow-y-auto space-y-8 bg-slate-50/30 dark:bg-transparent">
+
+                {/* Stepper implementation */}
+                <RequestStepper status={selectedRequest.status} />
+
                 <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm p-4 mb-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-dark-border">
-                    {/* Buyer Details */}
                     <div className="flex items-start gap-4 pb-6 md:pb-0">
                       <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                         <User size={24} />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Customer / Buyer</p>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Requested By</p>
                         <p className="font-semibold text-slate-800 dark:text-white text-lg">{selectedRequest.buyer?.name}</p>
                         <p className="text-xs font-mono text-slate-500 mt-1 bg-slate-100 dark:bg-dark-bg inline-block px-2 py-0.5 rounded border border-slate-200 dark:border-dark-border">{selectedRequest.buyer?.code}</p>
                       </div>
                     </div>
 
-                    {/* Date */}
                     <div className="flex items-start gap-4 py-6 md:py-0 md:px-8">
                       <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                         <Calendar size={24} />
@@ -474,7 +508,7 @@ const AdminRequests = () => {
                   <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl p-5 border border-amber-100 dark:border-amber-900/30 flex gap-4">
                     <div className="mt-0.5 text-amber-500"><MessageSquare size={20} /></div>
                     <div>
-                      <p className="text-md font-semibold text-amber-800 dark:text-amber-300 mb-1">Buyer Notes & Product Specifications</p>
+                      <p className="text-md font-semibold text-amber-800 dark:text-amber-300 mb-1">Your Notes</p>
                       <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">{selectedRequest.remarks}</p>
                     </div>
                   </div>
@@ -484,14 +518,14 @@ const AdminRequests = () => {
                   <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl p-5 border border-blue-100 dark:border-blue-900/30 flex gap-4">
                     <div className="mt-0.5 text-blue-500"><MessageSquare size={20} /></div>
                     <div>
-                      <p className="text-md font-semibold text-blue-800 dark:text-blue-300 mb-1">Processing Remarks</p>
+                      <p className="text-md font-semibold text-blue-800 dark:text-blue-300 mb-1">Admin Remarks</p>
                       <p className="text-sm text-blue-700 dark:text-blue-400 leading-relaxed">{selectedRequest.adminRemarks}</p>
                     </div>
                   </div>
                 )}
 
-                <div style={{ marginTop: '20px' }} className='mt-0'>
-                  <h3 className="font-semibold text-slate-800 dark:text-white text-lg flex items-center mb-4">
+                <div className='mt-0'>
+                  <h3 className="font-semibold text-slate-800 dark:text-white text-lg flex items-center mb-4 mt-6">
                     <Package size={20} className="mr-2 text-primary-600" /> Requested Products
                   </h3>
 
@@ -500,9 +534,7 @@ const AdminRequests = () => {
                       <thead className="bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
                         <tr>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Design</th>
-                          <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Production</th>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Requested Quantity</th>
-                          <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Current Stock</th>
                           <th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Rate</th>
                         </tr>
                       </thead>
@@ -525,33 +557,14 @@ const AdminRequests = () => {
                                   )}
                                 </div>
                                 <div>
-                                  <Link to="/admin/designs" className="font-semibold text-slate-800 dark:text-slate-200 text-base hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm" title="Manage Design">
+                                  <Link to={`/buyer/product/${item.design?.id}`} className="font-semibold text-slate-800 dark:text-slate-200 text-base hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm" title="View Design">
                                     {item.design?.name} {item.color ? `(${item.color})` : ''}
                                   </Link>
                                   <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{item.design?.code}</p>
                                 </div>
                               </td>
-                              <td className="p-4 text-sm">
-                                {item.design?.loom?.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {item.design.loom.map(l => (
-                                      <div key={l.id} className="text-slate-600 dark:text-slate-400">
-                                        <span className="font-medium">Loom {l.loomNo}</span>
-                                        {l.weaver && <span className="text-xs ml-1 text-slate-500">({l.weaver.name})</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-slate-400 text-xs italic">Not assigned</span>
-                                )}
-                              </td>
                               <td className="p-4">
                                 <span className="text-base font-bold text-slate-700 dark:text-slate-200">{item.quantity}</span>
-                              </td>
-                              <td className="p-4">
-                                <span className="inline-flex items-center px-2 py-1 rounded-md border text-xs font-bold bg-slate-50 border-slate-200 dark:bg-dark-bg dark:border-slate-800 text-slate-700 dark:text-slate-400">
-                                  {item.design?.availableStock} in stock
-                                </span>
                               </td>
                               <td className="p-4 text-slate-600 dark:text-slate-400 font-semibold">₹{item.design?.rate}</td>
                             </tr>
@@ -564,60 +577,14 @@ const AdminRequests = () => {
               </div>
 
               <div className="flex justify-between items-center px-8 py-5 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/80 dark:bg-dark-bg/50 shrink-0">
-                <button onClick={closeModal} className="px-6 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl shadow-sm transition-all">
+                <button onClick={closeModal} className="px-6 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl shadow-sm transition-all ml-auto">
                   Close Details
                 </button>
-
-                {selectedRequest.status === 'PENDING' && (
-                  <div className="flex space-x-3">
-                    <button onClick={() => handleUpdateStatus(selectedRequest.id, 'REJECTED')} className="px-6 py-2.5 text-sm font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl shadow-sm transition-all flex items-center hover:-translate-y-0.5">
-                      <XCircle size={18} className="mr-2" /> Reject Request
-                    </button>
-                    <button onClick={() => handleUpdateStatus(selectedRequest.id, 'APPROVED')} className="px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-sm shadow-emerald-600/30 transition-all flex items-center hover:-translate-y-0.5">
-                      <CheckCircle size={18} className="mr-2" /> Process Request
-                    </button>
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      <ConfirmDialog
-        open={confirmDialog.open}
-        onConfirm={executeUpdateStatus}
-        onCancel={() => setConfirmDialog({ open: false, requestId: null, status: '' })}
-        title={confirmDialog.status === 'REJECTED' ? 'Reject this request?' : confirmDialog.status === 'APPROVED' ? 'Process Request?' : 'Mark Request Completed?'}
-        message={
-          confirmDialog.status === 'REJECTED'
-            ? 'This action will reject the custom production request and notify the buyer. This cannot be undone.'
-            : confirmDialog.status === 'APPROVED'
-              ? 'This will move the production request to the processing phase and notify the buyer.'
-              : 'This will mark the production request as completed, indicating that custom weaving is finished.'
-        }
-        confirmText={confirmDialog.status === 'REJECTED' ? 'Yes, Reject' : confirmDialog.status === 'APPROVED' ? 'Yes, Process' : 'Yes, Complete'}
-        cancelText="Go Back"
-        variant={confirmDialog.status === 'REJECTED' ? 'danger' : 'success'}
-      >
-        <div className="w-full text-left">
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            size="small"
-            placeholder={confirmDialog.status === 'APPROVED' ? "Add processing remarks (optional)..." : "Add remark (optional)..."}
-            value={confirmDialog.remark}
-            onChange={(e) => setConfirmDialog(prev => ({ ...prev, remark: e.target.value }))}
-            sx={{
-              backgroundColor: 'white',
-              '.dark &': {
-                backgroundColor: '#1e293b',
-              }
-            }}
-          />
-        </div>
-      </ConfirmDialog>
 
       <AnimatePresence>
         {previewImage && (
@@ -650,4 +617,4 @@ const AdminRequests = () => {
   );
 };
 
-export default AdminRequests;
+export default BuyerRequests;

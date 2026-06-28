@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getCartApi, getTransportersApi, updateCartItemApi, removeCartItemApi, createOrderApi, createProductRequestApi, emailOrderPdfApi } from '../Action/api';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,7 @@ const Cart = () => {
   const [remarks, setRemarks] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const placedOrderRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestRemarks, setRequestRemarks] = useState('');
@@ -199,16 +200,7 @@ const Cart = () => {
       const res = await createOrderApi(formData);
       const newOrder = res.data.data;
 
-      try {
-        const pdfBlob = await generateOrderPdf(newOrder, { returnBlob: true });
-        if (pdfBlob) {
-          const emailFormData = new FormData();
-          emailFormData.append('orderPdf', pdfBlob, `Order_${newOrder.orderNumber}.pdf`);
-          await emailOrderPdfApi(newOrder.id, emailFormData);
-        }
-      } catch (pdfErr) {
-        console.error("Failed to generate and email PDF", pdfErr);
-      }
+      placedOrderRef.current = newOrder;
 
       window.dispatchEvent(new Event('cartUpdated'));
       window.dispatchEvent(new Event('ordersUpdated'));
@@ -235,6 +227,19 @@ const Cart = () => {
       window.resumeNotifications();
     } else {
       window.pauseNotifications = false;
+    }
+
+    if (placedOrderRef.current) {
+      const orderToPdf = placedOrderRef.current;
+      generateOrderPdf(orderToPdf, { returnBlob: true })
+        .then(async (pdfBlob) => {
+          if (pdfBlob) {
+            const emailFormData = new FormData();
+            emailFormData.append('orderPdf', pdfBlob, `Order_${orderToPdf.orderNumber}.pdf`);
+            await emailOrderPdfApi(orderToPdf.id, emailFormData);
+          }
+        })
+        .catch(pdfErr => console.error("Failed to generate and email PDF", pdfErr));
     }
 
     setTimeout(() => {

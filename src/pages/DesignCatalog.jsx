@@ -61,7 +61,15 @@ const DesignCatalog = () => {
         setLoading(false);
       }
     };
+
     initFetch();
+
+    const handleInventoryUpdate = () => {
+      initFetch();
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    return () => window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
   }, []);
 
   const loadMore = async () => {
