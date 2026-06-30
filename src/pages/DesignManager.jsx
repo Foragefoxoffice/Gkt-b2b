@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCategoriesApi, createCategoryApi, updateCategoryApi, deleteCategoryApi, getWeaversApi, createWeaverApi, updateWeaverApi, deleteWeaverApi, assignDesignToLoomApi } from '../Action/api';
 import { useSelector } from 'react-redux';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
@@ -12,6 +14,8 @@ import imageCompression from 'browser-image-compression';
 
 const DesignManager = () => {
   const { token } = useSelector(state => state.auth);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('categories'); // designs, categories, weavers
   const [designs, setDesigns] = useState([]);
@@ -224,6 +228,7 @@ const DesignManager = () => {
   const [viewItem, setViewItem] = useState(null);
   const [viewSliderIndex, setViewSliderIndex] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [highlightColor, setHighlightColor] = useState(null);
 
   const handleViewDetails = (item) => {
     setViewItem(item);
@@ -319,6 +324,26 @@ const DesignManager = () => {
     window.addEventListener('inventoryUpdated', handleUpdate);
     return () => window.removeEventListener('inventoryUpdated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openDesignDetailsId && activeTab !== 'designs') {
+      setActiveTab('designs');
+    }
+  }, [location.state?.openDesignDetailsId, activeTab]);
+
+  useEffect(() => {
+    if (location.state?.openDesignDetailsId && designs.length > 0 && activeTab === 'designs') {
+      const designToOpen = designs.find(d => d.id === location.state.openDesignDetailsId);
+      if (designToOpen) {
+        if (location.state.highlightColor) {
+          setHighlightColor(location.state.highlightColor);
+        }
+        handleViewDetails(designToOpen);
+        // Clear state to avoid reopening on refresh
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state?.openDesignDetailsId, designs, activeTab, navigate, location.pathname, location.state?.highlightColor]);
 
   const handlePriceChange = (e, field) => {
     // Allow digits and at most one decimal point
@@ -1155,120 +1180,137 @@ const DesignManager = () => {
           </div>
         </div>
       )}
-      {isViewModalOpen && viewItem && (
-        <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[55] p-4 transition-all">
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
-                <Eye className="mr-2 text-primary-600" size={20} />
-                Design Details
-              </h2>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {isViewModalOpen && viewItem && (
+          <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[55] p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-dark-border flex flex-col max-h-[90vh]"
+            >
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
+                  <Eye className="mr-2 text-primary-600" size={20} />
+                  Design Details
+                </h2>
+                <button onClick={() => { setIsViewModalOpen(false); setHighlightColor(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
 
-            <div className="p-6 overflow-y-auto">
-              <div className="flex flex-col gap-6">
+              <div className="p-6 overflow-y-auto">
+                <div className="flex flex-col gap-6">
 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 dark:bg-dark-bg p-5 rounded-xl border border-slate-200 dark:border-dark-border">
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{viewItem.name}</h3>
-                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">{viewItem.code}</p>
-                  </div>
-                  <div className="flex gap-6">
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Rate</p>
-                      <p className="font-bold text-primary-600 dark:text-primary-400 text-xl">₹{formatPrice(viewItem.rate)}</p>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 dark:bg-dark-bg p-5 rounded-xl border border-slate-200 dark:border-dark-border">
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{viewItem.name}</h3>
+                      <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mt-1">{viewItem.code}</p>
                     </div>
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">GST</p>
-                      <p className="font-medium text-slate-800 dark:text-slate-200 text-lg">{viewItem.gstPercent}%</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm flex flex-col justify-center gap-2">
-                    <div className="flex justify-between items-center border-b border-slate-50 dark:border-dark-border pb-3">
-                      <span className="text-xs text-slate-500 font-semibold uppercase">Category</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm bg-slate-50 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">{viewItem.designcategory?.name || '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-0">
-                      <span className="text-xs text-slate-500 font-semibold uppercase">Stock</span>
-                      <span className={`inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-bold shadow-sm ${viewItem.availableStock <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : viewItem.availableStock <= 20 ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
-                        {viewItem.availableStock} Units
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm col-span-2 md:col-span-2 flex flex-col justify-center">
-                    <p className="text-xs text-slate-500 font-semibold uppercase mb-3">Color(s)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {viewItem.color ? viewItem.color.split(',').map((c, i) => (
-                        <span key={i} className="px-3 py-1.5 bg-slate-50 dark:bg-dark-bg text-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">{c.trim()}</span>
-                      )) : <span className="text-slate-400 italic text-sm">None</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
-                    <ImageIcon size={18} className="text-primary-500" /> Design Images
-                  </h4>
-                  <div className="rounded-xl overflow-hidden bg-slate-50 dark:bg-dark-bg border border-slate-200 dark:border-dark-border shadow-sm p-3">
-                    {viewItem.image ? (
-                      (() => {
-                        const images = viewItem.image.split(',').map(img => img.trim()).filter(Boolean);
-                        let colors = [];
-                        if (viewItem.imageColorMap) {
-                          try {
-                            const parsedColors = JSON.parse(viewItem.imageColorMap);
-                            colors = Array.isArray(parsedColors) ? parsedColors : [];
-                          } catch (e) { }
-                        }
-
-                        return (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                            {images.map((img, idx) => (
-                              <div
-                                key={idx}
-                                className="relative aspect-[3/4] overflow-hidden rounded-lg border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-                                onClick={() => setSelectedImage(getImageUrl(img))}
-                              >
-                                <img
-                                  src={getImageUrl(img)}
-                                  alt={`${viewItem.name} ${idx + 1}`}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                                {colors[idx] && (
-                                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-md uppercase tracking-wider pointer-events-none shadow-sm">
-                                    {colors[idx]}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <div className="w-full h-48 flex items-center justify-center text-slate-400 flex-col bg-slate-100 dark:bg-dark-border rounded-lg">
-                        <ImageIcon size={40} className="mb-2 opacity-50" />
-                        <span className="text-sm font-medium">No Image</span>
+                    <div className="flex gap-6">
+                      <div className="text-right">
+                        <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Rate</p>
+                        <p className="font-bold text-primary-600 dark:text-primary-400 text-xl">₹{formatPrice(viewItem.rate)}</p>
                       </div>
-                    )}
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">GST</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200 text-lg">{viewItem.gstPercent}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm flex flex-col justify-center gap-2">
+                      <div className="flex justify-between items-center border-b border-slate-50 dark:border-dark-border pb-3">
+                        <span className="text-xs text-slate-500 font-semibold uppercase">Category</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm bg-slate-50 dark:bg-dark-bg px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">{viewItem.designcategory?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-0">
+                        <span className="text-xs text-slate-500 font-semibold uppercase">Stock</span>
+                        <span className={`inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-bold shadow-sm ${viewItem.availableStock <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : viewItem.availableStock <= 20 ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                          {viewItem.availableStock} Units
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-dark-border shadow-sm flex flex-col justify-center">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-3">Color(s)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {viewItem.color ? viewItem.color.split(',').map((c, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-slate-50 dark:bg-dark-bg text-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">{c.trim()}</span>
+                        )) : <span className="text-slate-400 italic text-sm">None</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+                      <ImageIcon size={18} className="text-primary-500" /> Design Images
+                    </h4>
+                    <div className="rounded-xl overflow-hidden bg-slate-50 dark:bg-dark-bg border border-slate-200 dark:border-dark-border shadow-sm p-3">
+                      {viewItem.image ? (
+                        (() => {
+                          const images = viewItem.image.split(',').map(img => img.trim()).filter(Boolean);
+                          let colors = [];
+                          if (viewItem.imageColorMap) {
+                            try {
+                              const parsedColors = JSON.parse(viewItem.imageColorMap);
+                              colors = Array.isArray(parsedColors) ? parsedColors : [];
+                            } catch (e) { }
+                          }
+
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3">
+                              {images.map((img, idx) => {
+                                const isHighlighted = highlightColor && colors[idx] && colors[idx].toLowerCase().trim() === highlightColor.toLowerCase().trim();
+
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`relative aspect-[3/4] overflow-hidden rounded-lg border bg-white dark:bg-dark-card transition-all group cursor-pointer ${isHighlighted ? 'ring-2 ring-[#e2148d] shadow-xl border-[#e2148d]/50 scale-[1.02] z-10' : 'border-slate-200 dark:border-dark-border shadow-sm hover:shadow-md'}`}
+                                    onClick={() => setSelectedImage(getImageUrl(img))}
+                                  >
+                                    <img
+                                      src={getImageUrl(img)}
+                                      alt={`${viewItem.name} ${idx + 1}`}
+                                      className={`w-full h-full object-cover transition-transform duration-300 ${!isHighlighted ? 'group-hover:scale-105' : ''}`}
+                                    />
+                                    {colors[idx] && (
+                                      <div className={`absolute bottom-2 left-2 backdrop-blur-sm text-[10px] font-semibold px-2 py-1 rounded-md uppercase tracking-wider pointer-events-none shadow-sm ${isHighlighted ? 'bg-[#e2148d] text-white border border-[#e2148d]/50' : 'bg-black/60 text-white'}`}>
+                                        {colors[idx]}
+                                      </div>
+                                    )}
+                                    {isHighlighted && (
+                                      <div className="absolute top-2 right-2 bg-[#e2148d] text-white rounded-full p-1 shadow-lg animate-pulse">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="w-full h-48 flex items-center justify-center text-slate-400 flex-col bg-slate-100 dark:bg-dark-border rounded-lg">
+                          <ImageIcon size={40} className="mb-2 opacity-50" />
+                          <span className="text-sm font-medium">No Image</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end px-6 py-4 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
-              <button type="button" onClick={() => setIsViewModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
-                Close
-              </button>
-            </div>
+              <div className="flex justify-end px-6 py-4 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
+                <button type="button" onClick={() => { setIsViewModalOpen(false); setHighlightColor(null); }} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
+                  Close
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={!!deleteConfirmId}

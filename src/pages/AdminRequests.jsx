@@ -299,8 +299,19 @@ const AdminRequests = () => {
                         <span className="italic text-slate-400">No items</span>
                       )}
                     </td>
-                    <td className="p-4 max-w-[200px] truncate text-slate-500 text-sm italic" title={req.remarks}>
-                      {req.remarks || <span className="text-slate-300 dark:text-slate-600 italic">No notes</span>}
+                    <td className="p-4 max-w-[200px]">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <div className="truncate text-slate-500 italic" title={`Buyer: ${req.remarks || 'No notes'}`}>
+                          <span className="font-semibold text-xs not-italic text-slate-400">Buyer: </span>
+                          {req.remarks || <span className="text-slate-300 dark:text-slate-600">No notes</span>}
+                        </div>
+                        {req.adminRemarks && (
+                          <div className="truncate text-blue-600 dark:text-blue-400 italic" title={`Admin: ${req.adminRemarks}`}>
+                            <span className="font-semibold text-xs not-italic text-blue-400 dark:text-blue-500">Admin: </span>
+                            {req.adminRemarks}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 font-medium text-slate-600 dark:text-slate-400 text-sm">
                       <div className="flex items-center">
@@ -525,8 +536,9 @@ const AdminRequests = () => {
                                   )}
                                 </div>
                                 <div>
-                                  <Link to="/admin/designs" className="font-semibold text-slate-800 dark:text-slate-200 text-base hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm" title="Manage Design">
-                                    {item.design?.name} {item.color ? `(${item.color})` : ''}
+                                  <Link to="/admin/designs" state={{ openDesignDetailsId: item.design?.id, highlightColor: item.color }} className="group inline-flex items-center gap-1.5 text-indigo-700 dark:text-indigo-400 font-bold rounded-lg active:scale-95 transition-all duration-300" title="View Design Details">
+                                    <span>{item.design?.name} {item.color ? `(${item.color})` : ''}</span>
+                                    <Eye size={14} className="opacity-70 group-hover:opacity-100" />
                                   </Link>
                                   <p className="text-xs text-slate-500 font-medium font-mono mt-0.5">{item.design?.code}</p>
                                 </div>
