@@ -865,16 +865,16 @@ const AdminOrders = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center"
+              className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
               onClick={e => e.stopPropagation()}
             >
               <button
                 onClick={() => setPreviewImage(null)}
-                className="absolute -top-12 right-0 md:-right-[-120px] z-10 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+                className="absolute -top-10 right-0 text-white hover:text-slate-300"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
-              <ImageZoom src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl" />
+              <ImageZoom src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700/50" />
             </motion.div>
           </motion.div>
         )}

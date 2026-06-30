@@ -419,9 +419,8 @@ const InventoryDashboard = () => {
 
       {/* Quick View Lightbox for Images */}
       {selectedImage && (
-        <div className="fixed modal_main inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setSelectedImage(null)}></div>
-          <div className="relative max-w-4xl w-full max-h-[90vh] bg-transparent flex items-center justify-center">
+        <div className="fixed modal_main inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 transition-all" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
             <button onClick={() => setSelectedImage(null)} className="absolute -top-10 right-0 text-white hover:text-slate-300">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
