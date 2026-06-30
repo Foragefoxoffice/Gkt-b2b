@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { getBuyersApi, createBuyerApi, updateBuyerApi, deleteBuyerApi, getCompaniesApi } from '../Action/api';
+import { getBuyersApi, createBuyerApi, updateBuyerApi, deleteBuyerApi, getCompaniesApi, regenerateBuyerPasswordApi } from '../Action/api';
 import { useSelector } from 'react-redux';
-import { Plus, Edit2, Trash2, Users } from 'lucide-react';
+
+import { Plus, Edit2, Trash2, Users, RefreshCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const FirmBuyerManager = () => {
-  const { token } = useSelector(state => state.auth);
+  const { token, user } = useSelector(state => state.auth);
 
   const [buyers, setBuyers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +72,19 @@ const FirmBuyerManager = () => {
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Operation failed');
+    }
+  };
+
+  const handleRegeneratePassword = async () => {
+    if (!editItem) return;
+    setIsRegenerating(true);
+    try {
+      await regenerateBuyerPasswordApi(editItem.id);
+      toast.success('Password regenerated and sent to buyer\'s email');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to regenerate password');
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -231,6 +246,16 @@ const FirmBuyerManager = () => {
             </div>
 
             <div className="flex justify-end space-x-3 px-6 py-4 mt-auto border-t border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20 shrink-0">
+              {editItem && (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                <button
+                  type="button"
+                  onClick={handleRegeneratePassword}
+                  disabled={isRegenerating}
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-[#e2148d] hover:bg-[#e2148d] rounded-lg shadow-sm shadow-[#e2148d]/30 transition-all mr-auto disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <RefreshCcw size={15} /> {isRegenerating ? 'Regenerating...' : 'Regenerate Password'}
+                </button>
+              )}
               <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg shadow-sm transition-all">
                 Cancel
               </button>

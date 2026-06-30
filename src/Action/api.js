@@ -127,6 +127,7 @@ export const getBuyersApi = () => api.get('/buyers');
 export const createBuyerApi = (data) => api.post('/buyers', data);
 export const updateBuyerApi = (id, data) => api.put(`/buyers/${id}`, data);
 export const deleteBuyerApi = (id) => api.delete(`/buyers/${id}`);
+export const regenerateBuyerPasswordApi = (id) => api.put(`/buyers/${id}/regenerate-password`);
 
 // Category APIs
 export const getCategoriesApi = (params) => api.get('/categories', { params });
