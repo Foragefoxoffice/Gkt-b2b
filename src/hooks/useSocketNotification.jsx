@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSocket } from '../context/SocketContext';
 import { Bell, ShoppingCart, Truck, X, Package } from 'lucide-react';
@@ -7,6 +7,8 @@ import orderDeliveredSound from '../assets/order_delivered.mp3';
 import orderCanceledSound from '../assets/order_canceled.mp3';
 import orderPlacedSound from '../assets/order_placed.mp3';
 import mainNotificationSound from '../assets/main_notification.wav';
+import { messaging, getToken } from '../firebase';
+import api from '../Action/api';
 
 let audioInstances = {};
 if (typeof Audio !== 'undefined') {
@@ -35,8 +37,31 @@ export const useSocketNotification = () => {
         }
       });
       
-      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission();
+      const registerFCM = async () => {
+        try {
+          if (!messaging) return;
+          const currentToken = await getToken(messaging, { 
+            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY 
+          });
+          if (currentToken) {
+            await api.put('/users/fcm-token', { token: currentToken });
+            console.log('FCM Token registered and sent to backend.');
+          }
+        } catch (err) {
+          console.error('An error occurred while retrieving token. ', err);
+        }
+      };
+
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          registerFCM();
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+              registerFCM();
+            }
+          });
+        }
       }
 
       document.removeEventListener('click', unlockAudioAndNotify);
