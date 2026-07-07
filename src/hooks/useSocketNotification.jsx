@@ -22,8 +22,9 @@ export const useSocketNotification = () => {
   const socket = useSocket();
 
   // Unlock audio on first user interaction to prevent NotAllowedError
+  // Also request notification permission
   useEffect(() => {
-    const unlockAudio = () => {
+    const unlockAudioAndNotify = () => {
       Object.values(audioInstances).forEach(audio => {
         if (audio) {
           audio.volume = 0; // Silent playback
@@ -34,19 +35,23 @@ export const useSocketNotification = () => {
         }
       });
       
-      document.removeEventListener('click', unlockAudio);
-      document.removeEventListener('keydown', unlockAudio);
-      document.removeEventListener('touchstart', unlockAudio);
+      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+
+      document.removeEventListener('click', unlockAudioAndNotify);
+      document.removeEventListener('keydown', unlockAudioAndNotify);
+      document.removeEventListener('touchstart', unlockAudioAndNotify);
     };
 
-    document.addEventListener('click', unlockAudio);
-    document.addEventListener('keydown', unlockAudio);
-    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('click', unlockAudioAndNotify);
+    document.addEventListener('keydown', unlockAudioAndNotify);
+    document.addEventListener('touchstart', unlockAudioAndNotify);
 
     return () => {
-      document.removeEventListener('click', unlockAudio);
-      document.removeEventListener('keydown', unlockAudio);
-      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudioAndNotify);
+      document.removeEventListener('keydown', unlockAudioAndNotify);
+      document.removeEventListener('touchstart', unlockAudioAndNotify);
     };
   }, []);
 
@@ -72,6 +77,26 @@ export const useSocketNotification = () => {
             toast('Please click anywhere on the page to enable notification sounds.', { icon: '🔇', id: 'audio-unlock-toast' });
           }
         });
+      }
+
+      // Native Browser Notification
+      if ('Notification' in window) {
+        const notificationOptions = {
+          body: data.message,
+          icon: '/AmbigaaSilks_logo.png',
+          badge: '/AmbigaaSilks_logo.png',
+          requireInteraction: false,
+        };
+
+        if (Notification.permission === 'granted') {
+          new Notification(data.title || 'Notification', notificationOptions);
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification(data.title || 'Notification', notificationOptions);
+            }
+          });
+        }
       }
 
       // Dispatch event to make it available to the notification UI panel
