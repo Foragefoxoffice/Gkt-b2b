@@ -11,6 +11,37 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ImageZoom from '../components/ImageZoom';
 import Pagination from '../components/Pagination';
 import imageCompression from 'browser-image-compression';
+import { getColorSync } from 'colorthief';
+import namer from 'color-namer';
+
+const extractDominantColor = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const color = getColorSync(img);
+          if (color) {
+            const rgb = color.array();
+            const result = namer(`rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`);
+            let name = result.ntc[0].name; // ntc provides human readable names
+            name = name.replace(/\b\w/g, l => l.toUpperCase());
+            resolve(name);
+          } else {
+             resolve('');
+          }
+        } catch (e) {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+};
 
 const DesignManager = () => {
   const { token } = useSelector(state => state.auth);
@@ -384,12 +415,14 @@ const DesignManager = () => {
         }
       }
 
+      let autoColor = await extractDominantColor(file);
+
       newImages.push({
         id: `new-${i}-${Date.now()}`,
         type: 'new',
         file,
         url: URL.createObjectURL(file),
-        color: ''
+        color: autoColor
       });
     }
 
@@ -398,11 +431,12 @@ const DesignManager = () => {
   };
 
   const removeImage = (index) => {
-    const colorToRemove = combinedImages[index]?.color;
-    if (colorToRemove) {
+    const imgToRemove = combinedImages[index];
+    const keyToRemove = imgToRemove?.color || (imgToRemove ? ('__temp__' + imgToRemove.id) : null);
+    if (keyToRemove) {
       setFormData(prev => {
         const newStocks = { ...prev.colorStocks };
-        delete newStocks[colorToRemove];
+        delete newStocks[keyToRemove];
         return { ...prev, colorStocks: newStocks };
       });
     }
@@ -556,7 +590,13 @@ const DesignManager = () => {
             form.append('color', finalColorString);
             appendedKeys.add('color');
           } else if (key === 'colorStocks') {
-            form.append(key, JSON.stringify(formData[key]));
+            const cleanStocks = {};
+            Object.keys(formData[key] || {}).forEach(k => {
+              if (!k.startsWith('__temp__')) {
+                cleanStocks[k] = formData[key][k];
+              }
+            });
+            form.append(key, JSON.stringify(cleanStocks));
             appendedKeys.add(key);
           } else {
             form.append(key, formData[key]);
@@ -605,7 +645,12 @@ const DesignManager = () => {
       setIsModalOpen(false);
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Operation failed');
+      const msg = err.response?.data?.message || 'Operation failed';
+      if (msg.includes('Unique constraint failed')) {
+        toast.error('A record with this code already exists. Please use a unique code.');
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -925,46 +970,49 @@ const DesignManager = () => {
                               {index > 0 && (
                                 <div className="flex items-center w-full mt-1.5 bg-white dark:bg-dark-bg border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 shadow-sm transition-all group">
                                   <input
+                                    required
+                                    type="number"
+                                    placeholder="Qty"
+                                    value={
+                                      (() => {
+                                        const key = img.color || ('__temp__' + img.id);
+                                        return formData.colorStocks?.[key] !== undefined ? formData.colorStocks[key] : '';
+                                      })()
+                                    }
+                                    onChange={(e) => {
+                                      const key = img.color || ('__temp__' + img.id);
+                                      const val = e.target.value;
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        colorStocks: { ...prev.colorStocks, [key]: val === '' ? '' : parseInt(val) }
+                                      }));
+                                    }}
+                                    className="w-[40%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
+                                  <input
                                     type="text"
                                     placeholder="Color"
                                     value={img.color || ''}
                                     onChange={(e) => {
-                                      const oldColor = img.color;
+                                      const oldKey = img.color || ('__temp__' + img.id);
                                       const newColor = e.target.value;
+                                      const newKey = newColor || ('__temp__' + img.id);
                                       const newImages = [...combinedImages];
                                       newImages[index].color = newColor;
                                       setCombinedImages(newImages);
 
-                                      if (oldColor && oldColor !== newColor) {
-                                        setFormData(prev => {
-                                          const newStocks = { ...prev.colorStocks };
-                                          const stockVal = newStocks[oldColor];
-                                          delete newStocks[oldColor];
-                                          if (newColor) {
-                                            newStocks[newColor] = stockVal || 0;
-                                          }
-                                          return { ...prev, colorStocks: newStocks };
-                                        });
-                                      }
+                                      setFormData(prev => {
+                                        const newStocks = { ...prev.colorStocks };
+                                        const stockVal = newStocks[oldKey];
+                                        delete newStocks[oldKey];
+                                        if (stockVal !== undefined) {
+                                          newStocks[newKey] = stockVal;
+                                        }
+                                        return { ...prev, colorStocks: newStocks };
+                                      });
                                     }}
                                     className="w-[60%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto"
-                                  />
-                                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
-                                  <input
-                                    type="number"
-                                    placeholder="Qty"
-                                    value={img.color ? (formData.colorStocks?.[img.color] !== undefined ? formData.colorStocks[img.color] : '') : ''}
-                                    onChange={(e) => {
-                                      if (img.color) {
-                                        setFormData(prev => ({
-                                          ...prev,
-                                          colorStocks: { ...prev.colorStocks, [img.color]: parseInt(e.target.value) || 0 }
-                                        }));
-                                      }
-                                    }}
-                                    disabled={!img.color}
-                                    title={!img.color ? "Enter color name first" : "Stock Quantity"}
-                                    className="w-[40%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                 </div>
                               )}
