@@ -991,6 +991,7 @@ const DesignManager = () => {
                                   />
                                   <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
                                   <input
+                                    required
                                     type="text"
                                     placeholder="Color"
                                     value={img.color || ''}
