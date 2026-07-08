@@ -29,7 +29,7 @@ const extractDominantColor = (file) => {
             name = name.replace(/\b\w/g, l => l.toUpperCase());
             resolve(name);
           } else {
-             resolve('');
+            resolve('');
           }
         } catch (e) {
           resolve('');
@@ -40,6 +40,31 @@ const extractDominantColor = (file) => {
     };
     reader.onerror = () => resolve('');
     reader.readAsDataURL(file);
+  });
+};
+
+const extractDominantColorUrl = (url) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        const color = getColorSync(img);
+        if (color) {
+          const rgb = color.array();
+          const result = namer(`rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`);
+          let name = result.ntc[0].name;
+          name = name.replace(/\b\w/g, l => l.toUpperCase());
+          resolve(name);
+        } else {
+          resolve('');
+        }
+      } catch (e) {
+        resolve('');
+      }
+    };
+    img.onerror = () => resolve('');
+    img.src = url;
   });
 };
 
@@ -473,7 +498,7 @@ const DesignManager = () => {
     }
   };
 
-  const handleDrop = (e, index) => {
+  const handleDrop = async (e, index) => {
     e.preventDefault();
     if (draggedImgIndex === null || draggedImgIndex === index) {
       setDraggedImgIndex(null);
@@ -481,16 +506,35 @@ const DesignManager = () => {
       return;
     }
 
-    setCombinedImages(prev => {
-      const items = [...prev];
-      const draggedItem = items[draggedImgIndex];
-      items.splice(draggedImgIndex, 1);
-      items.splice(index, 0, draggedItem);
-      return items;
-    });
+    let items = [...combinedImages];
+    const draggedItem = items[draggedImgIndex];
+    items.splice(draggedImgIndex, 1);
+    items.splice(index, 0, draggedItem);
 
+    setCombinedImages(items);
     setDraggedImgIndex(null);
     setDraggedOverIndex(null);
+
+    for (let i = 1; i < items.length; i++) {
+      if (!items[i].color) {
+        let autoColor = '';
+        if (items[i].type === 'new') {
+          autoColor = await extractDominantColor(items[i].file);
+        } else {
+          autoColor = await extractDominantColorUrl(getImageUrl(items[i].url));
+        }
+        if (autoColor) {
+          setCombinedImages(prev => {
+            const newItems = [...prev];
+            const idx = newItems.findIndex(img => img.id === items[i].id);
+            if (idx !== -1 && !newItems[idx].color) {
+              newItems[idx] = { ...newItems[idx], color: autoColor };
+            }
+            return newItems;
+          });
+        }
+      }
+    }
   };
 
   const handleDragEnd = () => {
@@ -987,7 +1031,7 @@ const DesignManager = () => {
                                         colorStocks: { ...prev.colorStocks, [key]: val === '' ? '' : parseInt(val) }
                                       }));
                                     }}
-                                    className="w-[40%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-[30%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
                                   <input
@@ -1013,7 +1057,7 @@ const DesignManager = () => {
                                         return { ...prev, colorStocks: newStocks };
                                       });
                                     }}
-                                    className="w-[60%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto"
+                                    className="w-[70%] text-xs px-2.5 py-2 outline-none bg-transparent placeholder-slate-400 text-slate-700 dark:text-slate-300 pointer-events-auto"
                                   />
                                 </div>
                               )}
