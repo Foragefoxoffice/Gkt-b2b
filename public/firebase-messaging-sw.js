@@ -11,18 +11,14 @@ const firebaseConfig = {
   measurementId: "G-ZFM70NTRX2"
 };
 
-firebase.initializeApp(firebaseConfig);
-const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+try {
+  firebase.initializeApp(firebaseConfig);
+  // Retrieve an instance of Firebase Messaging so that it can handle background messages.
+  const messaging = firebase.messaging();
   
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Notification';
-  const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || 'You have a new message.',
-    icon: '/AmbigaaSilks_logo.png',
-    badge: '/AmbigaaSilks_logo.png'
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
+  // Note: We do not need a custom onBackgroundMessage here because the backend sends 
+  // the `notification` payload (title/body). Firebase automatically intercepts this 
+  // and displays a system notification when the app is in the background or closed!
+} catch (e) {
+  console.log('Firebase SW config error: ', e);
+}

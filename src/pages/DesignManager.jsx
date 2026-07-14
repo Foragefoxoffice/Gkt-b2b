@@ -243,7 +243,7 @@ const DesignManager = () => {
       const lowStock = designs.filter(d => (parseInt(d.availableStock) || 0) < 20).length;
       const totalValue = designs.reduce((acc, d) => acc + ((parseFloat(d.rate) || 0) * (parseInt(d.availableStock) || 0)), 0);
       return [
-        { title: 'Total Designs', value: designs.length, trend: '+4.2%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Total Designs', value: totalItems, trend: '+4.2%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
         { title: 'Total Stock', value: totalStock, trend: '+1.5%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
         { title: 'Low Stock Items', value: lowStock, trend: '-2.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' },
         { title: 'Est. Stock Value', value: `₹${(totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : (totalValue / 1000).toFixed(1) + 'k')}`, trend: '+5.4%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' }
@@ -253,18 +253,18 @@ const DesignManager = () => {
       const assignedLooms = weavers.reduce((acc, w) => acc + (w.loom ? w.loom.filter(l => l.designId).length : 0), 0);
       const availableLooms = totalLooms - assignedLooms;
       return [
-        { title: 'Total Weavers', value: weavers.length, trend: '+2.1%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Total Weavers', value: totalItems, trend: '+2.1%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
         { title: 'Total Looms', value: totalLooms, trend: '+0.0%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
         { title: 'Assigned Looms', value: assignedLooms, trend: '+15.2%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' },
         { title: 'Available Looms', value: availableLooms, trend: '-5.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' }
       ];
     } else {
       return [
-        { title: 'Total Categories', value: categories.length, trend: '+12.5%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
-        { title: 'Active Categories', value: categories.length, trend: '+8.2%', isPositive: true, sparklineData: sparkline2, color: '#e2148d' },
+        { title: 'Total Categories', value: totalItems, trend: '+12.5%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
+        { title: 'Active Categories', value: totalItems, trend: '+8.2%', isPositive: true, sparklineData: sparkline2, color: '#e2148d' },
       ];
     }
-  }, [activeTab, designs, weavers, categories, sparkline1, sparkline2, sparkline3, sparkline4]);
+  }, [activeTab, designs, weavers, categories, sparkline1, sparkline2, sparkline3, sparkline4, totalItems]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
