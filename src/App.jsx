@@ -51,7 +51,7 @@ import { SocketProvider } from './context/SocketContext.jsx';
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector(state => state.auth);
+  const { isAuthenticated, user } = useSelector(state => state.auth);
 
   // Restore dark mode
   useEffect(() => {
@@ -78,9 +78,17 @@ function App() {
     <SocketProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={
+            isAuthenticated 
+              ? <Navigate to={user?.role === 'BUYER' ? '/buyer/dashboard' : '/admin/dashboard'} replace />
+              : <Navigate to="/login" replace />
+          } />
 
-          <Route element={<AuthLayout />}>
+          <Route element={
+            isAuthenticated 
+              ? <Navigate to={user?.role === 'BUYER' ? '/buyer/dashboard' : '/admin/dashboard'} replace /> 
+              : <AuthLayout />
+          }>
             <Route path="/login" element={<Login />} />
           </Route>
 
