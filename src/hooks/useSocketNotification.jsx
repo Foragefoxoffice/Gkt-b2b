@@ -40,8 +40,13 @@ export const useSocketNotification = () => {
       const registerFCM = async () => {
         try {
           if (!messaging) return;
+          
+          // Explicitly register the service worker
+          const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          
           const currentToken = await getToken(messaging, { 
-            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY 
+            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+            serviceWorkerRegistration: registration
           });
           if (currentToken) {
             await api.put('/users/fcm-token', { token: currentToken });
