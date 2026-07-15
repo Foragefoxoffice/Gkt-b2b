@@ -32,6 +32,7 @@ import BuyerOrders from './pages/BuyerOrders.jsx';
 import BuyerRequests from './pages/BuyerRequests.jsx';
 import Products from './pages/Products.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 
 const PrivateRoute = ({ children, roles }) => {
   const { isAuthenticated, user } = useSelector(state => state.auth);
@@ -138,6 +139,7 @@ function App() {
               </button>
             </div>
           } />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="*" element={<div className="flex h-screen items-center justify-center text-slate-800 dark:text-white">404 Not Found</div>} />
         </Routes>
       </Router>
