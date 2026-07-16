@@ -116,7 +116,17 @@ const AdminOrders = () => {
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, totalAmount: 0 });
+  const [stats, setStats] = useState({ 
+    totalOrders: 0, 
+    pendingOrders: 0, 
+    totalAmount: 0,
+    totalOrdersTrend: 0,
+    pendingOrdersTrend: 0,
+    totalAmountTrend: 0,
+    sparklineOrders: null,
+    sparklinePending: null,
+    sparklineAmount: null
+  });
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -293,7 +303,7 @@ const AdminOrders = () => {
     <div className="space-y-6 mx-auto">
       <div className="flex justify-between items-center mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center">
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white flex items-center">
             <ShoppingCart className="mr-3 text-primary-600" /> Order Management
           </h1>
           <p className="text-sm text-slate-500 mt-1">Review, approve, and track all incoming orders from buyers.</p>
@@ -305,25 +315,25 @@ const AdminOrders = () => {
         <KPICard
           title="Total Orders"
           value={totalOrders}
-          trend="+12.5%"
-          isPositive={true}
-          sparklineData={[{ value: 40 }, { value: 30 }, { value: 45 }, { value: 50 }, { value: 35 }, { value: 60 }, { value: 70 }]}
+          trend={`${stats.totalOrdersTrend > 0 ? '+' : ''}${stats.totalOrdersTrend || 0}%`}
+          isPositive={stats.totalOrdersTrend >= 0 !== false}
+          sparklineData={stats.sparklineOrders?.some(d => d.value > 0) ? stats.sparklineOrders : [{ value: 40 }, { value: 30 }, { value: 45 }, { value: 50 }, { value: 35 }, { value: 60 }, { value: 70 }]}
           color="#10b981"
         />
         <KPICard
           title="Action Required"
           value={pendingOrders}
-          trend="-4.2%"
-          isPositive={false}
-          sparklineData={[{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }]}
+          trend={`${stats.pendingOrdersTrend > 0 ? '+' : ''}${stats.pendingOrdersTrend || 0}%`}
+          isPositive={stats.pendingOrdersTrend >= 0 !== false}
+          sparklineData={stats.sparklinePending?.some(d => d.value > 0) ? stats.sparklinePending : [{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }]}
           color="#f43f5e"
         />
         <KPICard
           title="Total Sales"
           value={`₹${formatPrice(totalSales.toFixed(0))}`}
-          trend="+8.2%"
-          isPositive={true}
-          sparklineData={[{ value: 20 }, { value: 30 }, { value: 25 }, { value: 40 }, { value: 60 }, { value: 50 }, { value: 80 }]}
+          trend={`${stats.totalAmountTrend > 0 ? '+' : ''}${stats.totalAmountTrend || 0}%`}
+          isPositive={stats.totalAmountTrend >= 0 !== false}
+          sparklineData={stats.sparklineAmount?.some(d => d.value > 0) ? stats.sparklineAmount : [{ value: 20 }, { value: 30 }, { value: 25 }, { value: 40 }, { value: 60 }, { value: 50 }, { value: 80 }]}
           color="#e2148d"
         />
       </div>
@@ -623,9 +633,9 @@ const AdminOrders = () => {
                       <div>
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Transporter</p>
                         <p className="font-semibold text-slate-800 dark:text-white text-lg">
-                          {selectedOrder.transporter?.name || 
-                           (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/)?.[1]?.trim()) || 
-                           <span className="text-slate-400 font-medium text-md">Unassigned</span>}
+                          {selectedOrder.transporter?.name ||
+                            (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/)?.[1]?.trim()) ||
+                            <span className="text-slate-400 font-medium text-md">Unassigned</span>}
                         </p>
                         <p className="text-sm text-slate-500 mt-0.5">{selectedOrder.transporter?.mobile || (selectedOrder.remarks && selectedOrder.remarks.match(/Preferred Transporter:\s*([^\n]+)/) ? <span className="text-slate-400 italic font-medium">Custom</span> : null)}</p>
                       </div>
@@ -812,7 +822,7 @@ const AdminOrders = () => {
                     {isGeneratingPdf ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
                     ) : (
-                      <Download size={18} className="mr-2" /> 
+                      <Download size={18} className="mr-2" />
                     )}
                     {isGeneratingPdf ? 'Generating...' : 'Download Order Form'}
                   </button>

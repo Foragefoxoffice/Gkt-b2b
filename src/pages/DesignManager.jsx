@@ -3,7 +3,7 @@ import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCa
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Tooltip } from '@mui/material';
@@ -78,6 +78,9 @@ const DesignManager = () => {
   const [categories, setCategories] = useState([]);
   const [weavers, setWeavers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoryStats, setCategoryStats] = useState(null);
+  const [designStats, setDesignStats] = useState(null);
+  const [weaverStats, setWeaverStats] = useState(null);
   const alertedDesigns = useRef(new Set());
 
   useEffect(() => {
@@ -239,32 +242,48 @@ const DesignManager = () => {
 
   const stats = useMemo(() => {
     if (activeTab === 'designs') {
-      const totalStock = designs.reduce((acc, d) => acc + (parseInt(d.availableStock) || 0), 0);
-      const lowStock = designs.filter(d => (parseInt(d.availableStock) || 0) < 20).length;
-      const totalValue = designs.reduce((acc, d) => acc + ((parseFloat(d.rate) || 0) * (parseInt(d.availableStock) || 0)), 0);
+      const totalStock = designStats?.totalStock?.value || designs.reduce((acc, d) => acc + (parseInt(d.availableStock) || 0), 0);
+      const lowStock = designStats?.lowStock?.value || designs.filter(d => (parseInt(d.availableStock) || 0) < 20).length;
+      const totalValue = designStats?.totalValue?.value || designs.reduce((acc, d) => acc + ((parseFloat(d.rate) || 0) * (parseInt(d.availableStock) || 0)), 0);
+      const trendStr = designStats?.totalDesigns?.trend ? `${designStats.totalDesigns.trend > 0 ? '+' : ''}${designStats.totalDesigns.trend}%` : '';
       return [
-        { title: 'Total Designs', value: totalItems, trend: '+4.2%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
-        { title: 'Total Stock', value: totalStock, trend: '+1.5%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
-        { title: 'Low Stock Items', value: lowStock, trend: '-2.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' },
-        { title: 'Est. Stock Value', value: `₹${(totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : (totalValue / 1000).toFixed(1) + 'k')}`, trend: '+5.4%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' }
+        { title: 'Total Designs', value: designStats?.totalDesigns?.value || totalItems, trend: trendStr, isPositive: (designStats?.totalDesigns?.trend ?? 0) >= 0, sparklineData: designStats?.totalDesigns?.sparkline || sparkline1, color: '#10b981' },
+        { title: 'Total Stock', value: totalStock, trend: '+15%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
+        { title: 'Low Stock Items', value: lowStock, trend: '-5%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' },
+        { title: 'Est. Stock Value', value: `₹${(totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : (totalValue >= 1000 ? (totalValue / 1000).toFixed(1) + 'k' : totalValue.toLocaleString()))}`, trend: '+10%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' }
       ];
     } else if (activeTab === 'weavers') {
-      const totalLooms = weavers.reduce((acc, w) => acc + (w.loom ? w.loom.length : 0), 0);
-      const assignedLooms = weavers.reduce((acc, w) => acc + (w.loom ? w.loom.filter(l => l.designId).length : 0), 0);
-      const availableLooms = totalLooms - assignedLooms;
+      const totalLooms = weaverStats?.totalLooms?.value || weavers.reduce((acc, w) => acc + (w.loom ? w.loom.length : 0), 0);
+      const assignedLooms = weaverStats?.assignedLooms?.value || weavers.reduce((acc, w) => acc + (w.loom ? w.loom.filter(l => l.designId).length : 0), 0);
+      const availableLooms = weaverStats?.availableLooms?.value || (totalLooms - assignedLooms);
+      const trendStr = weaverStats?.totalWeavers?.trend ? `${weaverStats.totalWeavers.trend > 0 ? '+' : ''}${weaverStats.totalWeavers.trend}%` : '';
       return [
-        { title: 'Total Weavers', value: totalItems, trend: '+2.1%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
-        { title: 'Total Looms', value: totalLooms, trend: '+0.0%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
-        { title: 'Assigned Looms', value: assignedLooms, trend: '+15.2%', isPositive: true, sparklineData: sparkline4, color: '#e2148d' },
-        { title: 'Available Looms', value: availableLooms, trend: '-5.1%', isPositive: false, sparklineData: sparkline3, color: '#f43f5e' }
+        { title: 'Total Weavers', value: weaverStats?.totalWeavers?.value || totalItems, trend: trendStr, isPositive: (weaverStats?.totalWeavers?.trend ?? 0) >= 0, sparklineData: weaverStats?.totalWeavers?.sparkline || sparkline1, color: '#10b981' },
+        { title: 'Total Looms', value: totalLooms, trend: '+8%', isPositive: true, sparklineData: sparkline2, color: '#0ea5e9' },
+        { title: 'Assigned Looms', value: assignedLooms, trend: '+12%', isPositive: true, sparklineData: sparkline3, color: '#e2148d' },
+        { title: 'Available Looms', value: availableLooms, trend: '-2%', isPositive: false, sparklineData: sparkline4, color: '#f43f5e' }
       ];
     } else {
       return [
-        { title: 'Total Categories', value: totalItems, trend: '+12.5%', isPositive: true, sparklineData: sparkline1, color: '#10b981' },
-        { title: 'Active Categories', value: totalItems, trend: '+8.2%', isPositive: true, sparklineData: sparkline2, color: '#e2148d' },
+        {
+          title: 'Total Categories',
+          value: categoryStats?.total || totalItems,
+          trend: categoryStats ? `${categoryStats.trend > 0 ? '+' : ''}${categoryStats.trend}%` : '',
+          isPositive: categoryStats ? categoryStats.trend >= 0 : true,
+          sparklineData: categoryStats ? categoryStats.sparkline : sparkline1,
+          color: '#10b981'
+        },
+        {
+          title: 'Active Categories',
+          value: categoryStats?.total || totalItems,
+          trend: categoryStats ? `${categoryStats.trend > 0 ? '+' : ''}${categoryStats.trend}%` : '',
+          isPositive: categoryStats ? categoryStats.trend >= 0 : true,
+          sparklineData: categoryStats ? categoryStats.sparkline : sparkline2,
+          color: '#e2148d'
+        },
       ];
     }
-  }, [activeTab, designs, weavers, categories, sparkline1, sparkline2, sparkline3, sparkline4, totalItems]);
+  }, [activeTab, designs, weavers, categories, sparkline1, sparkline2, sparkline3, sparkline4, totalItems, categoryStats, designStats, weaverStats]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -347,6 +366,9 @@ const DesignManager = () => {
         if (dRes.data.pagination) {
           setTotalPages(dRes.data.pagination.totalPages);
           setTotalItems(dRes.data.pagination.total);
+          if (dRes.data.pagination.stats) {
+            setDesignStats(dRes.data.pagination.stats);
+          }
         }
       } else if (activeTab === 'categories') {
         const res = await getCategoriesApi({ page, limit, search: debouncedSearchTerm });
@@ -354,6 +376,9 @@ const DesignManager = () => {
         if (res.data.pagination) {
           setTotalPages(res.data.pagination.totalPages);
           setTotalItems(res.data.pagination.total);
+          if (res.data.pagination.stats) {
+            setCategoryStats(res.data.pagination.stats);
+          }
         }
       } else {
         const [wRes, dRes] = await Promise.all([
@@ -365,6 +390,9 @@ const DesignManager = () => {
         if (wRes.data.pagination) {
           setTotalPages(wRes.data.pagination.totalPages);
           setTotalItems(wRes.data.pagination.total);
+          if (wRes.data.pagination.stats) {
+            setWeaverStats(wRes.data.pagination.stats);
+          }
         }
       }
     } catch (err) {
@@ -720,7 +748,7 @@ const DesignManager = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-2">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white">Design Management</h1>
+          <h1 className="text-2xl font-semibold flex items-center text-slate-800 dark:text-white"><Package size={22} className="mr-2 text-primary-600" />Design Management</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage categories, designs, and weavers</p>
         </div>
         <button onClick={() => openModal()} className="btn btn-primary flex items-center shadow-sm">

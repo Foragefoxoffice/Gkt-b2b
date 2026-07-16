@@ -238,11 +238,11 @@ const AdminDashboard = () => {
 
   const { kpi, charts } = data;
 
-  // Dummy sparkline data for aesthetics
-  const sparkline1 = [{ value: 40 }, { value: 30 }, { value: 45 }, { value: 50 }, { value: 35 }, { value: 60 }, { value: 70 }];
-  const sparkline2 = [{ value: 20 }, { value: 30 }, { value: 25 }, { value: 40 }, { value: 60 }, { value: 50 }, { value: 80 }];
-  const sparkline3 = [{ value: 70 }, { value: 60 }, { value: 50 }, { value: 40 }, { value: 55 }, { value: 45 }, { value: 30 }];
-  const sparkline4 = [{ value: 30 }, { value: 50 }, { value: 40 }, { value: 60 }, { value: 55 }, { value: 70 }, { value: 90 }];
+  // Dynamic sparkline data based on monthlyTrends
+  const sparklineOrders = charts.monthlyTrends.map(d => ({ value: d.orders }));
+  const sparklineSales = charts.monthlyTrends.map(d => ({ value: d.sales }));
+  const sparklinePending = charts.monthlyTrends.map(d => ({ value: d.pending }));
+  const sparklineBuyers = charts.monthlyTrends.map(d => ({ value: d.buyers }));
 
   const PIE_COLORS = ['#e2148d', '#f0a3cf', '#fcd34d', '#34d399', '#f87171'];
 
@@ -271,33 +271,33 @@ const AdminDashboard = () => {
         <KPICard
           title="Total Orders"
           value={kpi.totalOrders}
-          trend="+12.5%"
-          isPositive={true}
-          sparklineData={sparkline1}
+          trend={`${kpi.trends.orders > 0 ? '+' : ''}${kpi.trends.orders}%`}
+          isPositive={kpi.trends.orders >= 0}
+          sparklineData={sparklineOrders}
           color="#10b981"
         />
         <KPICard
           title="Total Sales Value"
           value={`₹${kpi.totalSales >= 1000000 ? (kpi.totalSales / 1000000).toFixed(1) + 'M' : kpi.totalSales.toLocaleString()}`}
-          trend="+8.2%"
-          isPositive={true}
-          sparklineData={sparkline2}
+          trend={`${kpi.trends.sales > 0 ? '+' : ''}${kpi.trends.sales}%`}
+          isPositive={kpi.trends.sales >= 0}
+          sparklineData={sparklineSales}
           color="#e2148d"
         />
         <KPICard
           title="Pending Orders"
           value={kpi.pendingOrders}
-          trend="-4.2%"
-          isPositive={false}
-          sparklineData={sparkline3}
+          trend={`${kpi.trends.pendingOrders > 0 ? '+' : ''}${kpi.trends.pendingOrders}%`}
+          isPositive={kpi.trends.pendingOrders < 0} // Decreasing pending orders is positive
+          sparklineData={sparklinePending}
           color="#f43f5e"
         />
         <KPICard
           title="Total Buyers"
           value={kpi.totalBuyers}
-          trend="+3.1%"
-          isPositive={true}
-          sparklineData={sparkline4}
+          trend={`${kpi.trends.buyers > 0 ? '+' : ''}${kpi.trends.buyers}%`}
+          isPositive={kpi.trends.buyers >= 0}
+          sparklineData={sparklineBuyers}
           color="#0ea5e9"
         />
       </div>
