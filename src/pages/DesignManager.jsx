@@ -784,7 +784,7 @@ const DesignManager = () => {
 
           const extMatch = fullUrl.match(/\.([^.?#]+)(\?.*)?$/);
           const ext = extMatch ? extMatch[1] : 'jpg';
-          const fileName = `${item.code}${colorName}_Rate${rate}_GST${gst}.${ext}`;
+          const fileName = `${item.code}${colorName}`;
 
           try {
             const response = await fetch(fullUrl);
