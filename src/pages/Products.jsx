@@ -5,12 +5,17 @@ import { Select, MenuItem, Slider, Checkbox, FormControlLabel } from '@mui/mater
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { Download } from 'lucide-react';
 
 export default function Products() {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadOptionsModalOpen, setDownloadOptionsModalOpen] = useState(false);
 
     // Pagination state
     const [page, setPage] = useState(1);
@@ -277,6 +282,120 @@ export default function Products() {
         return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${firstImage}`;
     };
 
+    const handleDownloadImagesZip = async (withRate) => {
+        setDownloadOptionsModalOpen(false);
+        if (filteredProducts.length === 0) {
+            toast.error('No products to download');
+            return;
+        }
+
+        setIsDownloading(true);
+        const loadingToast = toast.loading('Generating ZIP file...');
+
+        try {
+            const zip = new JSZip();
+            let hasImages = false;
+
+            for (const item of filteredProducts) {
+                if (!item.image) continue;
+
+                const images = item.image.split(',').map(img => img.trim()).filter(Boolean);
+                let colors = [];
+                if (item.colorStock) {
+                    try {
+                        const parsed = typeof item.colorStock === 'string' ? JSON.parse(item.colorStock) : item.colorStock;
+                        colors = Object.keys(parsed);
+                    } catch (e) {
+                        colors = item.color ? [item.color] : [];
+                    }
+                } else if (item.color) {
+                    colors = [item.color];
+                }
+
+                for (let idx = 0; idx < images.length; idx++) {
+                    const imgUrl = images[idx];
+                    const fullUrl = getImageUrl(imgUrl);
+                    const colorName = colors[idx] ? `_${colors[idx].replace(/[^a-zA-Z0-9]/g, '')}` : (images.length > 1 ? `_${idx + 1}` : '');
+                    const rate = item.rate || 0;
+                    const gst = item.gstPercent || 0;
+
+                    const extMatch = fullUrl.match(/\.([^.?#]+)(\?.*)?$/);
+                    const ext = extMatch ? extMatch[1] : 'jpg';
+                    const fileName = `${item.code}${colorName}_Rate${rate}_GST${gst}.${ext}`;
+
+                    try {
+                        const response = await fetch(fullUrl);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        const blob = await response.blob();
+
+                        if (withRate) {
+                            const img = new Image();
+                            img.crossOrigin = "Anonymous";
+                            const imgLoadPromise = new Promise((resolve, reject) => {
+                                img.onload = () => resolve(img);
+                                img.onerror = reject;
+                                img.src = URL.createObjectURL(blob);
+                            });
+
+                            await imgLoadPromise;
+
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+
+                            ctx.drawImage(img, 0, 0);
+
+                            const text = `Rate: ₹${rate}`;
+                            const fontSize = Math.max(24, Math.floor(img.width * 0.055));
+                            ctx.font = `bold ${fontSize}px sans-serif`;
+
+                            const padding = fontSize * 0.8;
+                            const textWidth = ctx.measureText(text).width;
+                            const rectHeight = fontSize + padding * 1.5;
+                            const rectWidth = textWidth + padding * 2;
+
+                            const x = (img.width - rectWidth) / 2;
+                            const y = img.height - rectHeight - (img.height * 0.05);
+
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                            ctx.beginPath();
+                            ctx.roundRect ? ctx.roundRect(x, y, rectWidth, rectHeight, rectHeight / 2) : ctx.rect(x, y, rectWidth, rectHeight);
+                            ctx.fill();
+
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textBaseline = 'middle';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(text, x + rectWidth / 2, y + rectHeight / 2);
+
+                            const finalBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                            zip.file(fileName, finalBlob);
+                        } else {
+                            zip.file(fileName, blob);
+                        }
+
+                        hasImages = true;
+                    } catch (err) {
+                        console.error(`Failed to fetch/process image: ${fullUrl}`, err);
+                    }
+                }
+            }
+
+            if (hasImages) {
+                const content = await zip.generateAsync({ type: 'blob' });
+                saveAs(content, `Products_${new Date().toISOString().split('T')[0]}.zip`);
+                toast.success('ZIP downloaded successfully!', { id: loadingToast });
+            } else {
+                toast.error('No valid images found to download.', { id: loadingToast });
+            }
+        } catch (error) {
+            console.error('ZIP generation failed:', error);
+            toast.error('Failed to generate ZIP file.', { id: loadingToast });
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     // Animation variants
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -491,9 +610,23 @@ export default function Products() {
                             <Package className="mr-2 text-primary-600" />
                             {selectedCategory === 'ALL' ? 'All Products' : categories.find(c => c.id === selectedCategory)?.name || 'Products'}
                         </h2>
-                        <span className="text-sm font-medium text-slate-500 bg-slate-100 dark:bg-dark-border px-3 py-1 rounded-full">
-                            {filteredProducts.length} items
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setDownloadOptionsModalOpen(true)}
+                                disabled={isDownloading || filteredProducts.length === 0}
+                                className="flex items-center gap-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-dark-bg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                                {isDownloading ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-600"></div>
+                                ) : (
+                                    <Download size={16} />
+                                )}
+                                Download Images
+                            </button>
+                            <span className="text-sm font-medium text-slate-500 bg-slate-100 dark:bg-dark-border px-3 py-1 rounded-full">
+                                {filteredProducts.length} items
+                            </span>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -636,6 +769,49 @@ export default function Products() {
                                         View Full Product Page
                                     </button>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {downloadOptionsModalOpen && (
+                    <div className="fixed inset-0 modal_main z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            onClick={() => setDownloadOptionsModalOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-6 border border-slate-100 dark:border-dark-border"
+                        >
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Download Images</h3>
+                            <p className="text-slate-600 dark:text-slate-400 mb-6 text-sm">Do you want to include the rate watermark on the downloaded images?</p>
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => handleDownloadImagesZip(true)}
+                                    className="w-full py-3 bg-primary-600 hover:bg-primary-500 text-white font-medium rounded-xl transition-colors"
+                                >
+                                    Download With Rate
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadImagesZip(false)}
+                                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl transition-colors"
+                                >
+                                    Download Without Rate
+                                </button>
+                                <button
+                                    onClick={() => setDownloadOptionsModalOpen(false)}
+                                    className="w-full py-3 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium mt-2"
+                                >
+                                    Cancel
+                                </button>
                             </div>
                         </motion.div>
                     </div>

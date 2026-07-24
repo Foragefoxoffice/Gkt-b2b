@@ -1,25 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setCredentials } from '../store/slices/authSlice';
 import toast from 'react-hot-toast';
 import { loginApi, verifyOtpApi, forgotPasswordApi, resetPasswordApi } from '../Action/api';
-import { Eye, EyeOff, Mail, Lock, ShieldCheck, ArrowLeft, KeyRound, MapPin, Phone, Building } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ShieldCheck, ArrowLeft, KeyRound, MapPin, Phone, Building, Globe, Shield } from 'lucide-react';
 import Loader from '../Common/Loader';
 
 const Login = () => {
   const [showSplash, setShowSplash] = useState(false);
   const [step, setStep] = useState('login'); // 'login' or 'otp'
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const abortProcessRef = React.useRef(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [userId, setUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [verifyEmail, setVerifyEmail] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [scanLogs, setScanLogs] = useState([]);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -30,18 +36,77 @@ const Login = () => {
       return toast.error('Please enter both email and password');
     }
 
-    setLoading(true);
+    const currentProcessId = Date.now();
+    abortProcessRef.current = currentProcessId;
+    setIsAuthenticating(true);
+    setScanLogs(["INITIALIZING SECURE CONNECTION...", "VERIFYING IP WITH CREDENTIALS..."]);
+
     try {
+      // Add a slight delay to let the animation play out for the cyber effect
+      await new Promise(r => setTimeout(r, 1200));
+      if (abortProcessRef.current !== currentProcessId) return;
+
       const response = await loginApi({ email, password });
+      if (abortProcessRef.current !== currentProcessId) return;
 
       if (response.data.data?.requiresOtp) {
-        setUserId(response.data.data.user.id);
-        setStep('otp');
-        toast.success('OTP sent to your registered email address');
+        setScanLogs(prev => [...prev, "ANALYZING IP ADDRESS TRACE...", "WARNING: UNRECOGNIZED IP DETECTED!", "INITIATING 2FA PROTOCOL..."]);
+
+        setTimeout(() => {
+          if (abortProcessRef.current !== currentProcessId) return;
+          setUserId(response.data.data.user.id);
+          setUserRole(response.data.data.user.role);
+          setStep('otp');
+          setIsAuthenticating(false);
+          toast.success('OTP sent to your registered email address');
+        }, 1500);
       } else if (response.data.success) {
+        setScanLogs(prev => [...prev, "ANALYZING IP ADDRESS TRACE... [OK]", "ACCESS GRANTED. REDIRECTING..."]);
+
+        setTimeout(() => {
+          if (abortProcessRef.current !== currentProcessId) return;
+          setIsAuthenticating(false);
+          dispatch(setCredentials(response.data.data));
+          toast.success('Logged in successfully');
+
+          setShowSplash(true);
+          setTimeout(() => {
+            if (response.data.data.user.role === 'BUYER') {
+              navigate('/buyer/dashboard');
+            } else {
+              navigate('/admin/dashboard');
+            }
+          }, 2500);
+        }, 1200);
+      }
+    } catch (error) {
+      if (abortProcessRef.current !== currentProcessId) return;
+      setScanLogs(prev => [...prev, "ERROR: ACCESS DENIED"]);
+      setTimeout(() => {
+        if (abortProcessRef.current !== currentProcessId) return;
+        setIsAuthenticating(false);
+        toast.error(error.response?.data?.message || 'Login failed');
+      }, 1000);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp) return toast.error('Please enter the OTP');
+
+    if ((userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && !verifyEmail) {
+      return toast.error('Please confirm your email address');
+    }
+
+    const currentProcessId = Date.now();
+    abortProcessRef.current = currentProcessId;
+    setLoading(true);
+    try {
+      const response = await verifyOtpApi({ userId, otp, email: verifyEmail || undefined });
+      if (abortProcessRef.current !== currentProcessId) return;
+      if (response.data.success) {
         dispatch(setCredentials(response.data.data));
         toast.success('Logged in successfully');
-
         setShowSplash(true);
         setTimeout(() => {
           if (response.data.data.user.role === 'BUYER') {
@@ -52,31 +117,12 @@ const Login = () => {
         }, 2500);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (!otp) return toast.error('Please enter the OTP');
-
-    setLoading(true);
-    try {
-      const response = await verifyOtpApi({ userId, otp });
-      if (response.data.success) {
-        dispatch(setCredentials(response.data.data));
-        toast.success('Logged in successfully');
-        setShowSplash(true);
-        setTimeout(() => {
-          navigate('/buyer/dashboard');
-        }, 2500);
-      }
-    } catch (error) {
+      if (abortProcessRef.current !== currentProcessId) return;
       toast.error(error.response?.data?.message || 'OTP verification failed');
     } finally {
-      setLoading(false);
+      if (abortProcessRef.current === currentProcessId) {
+        setLoading(false);
+      }
     }
   };
 
@@ -127,7 +173,63 @@ const Login = () => {
   return (
     <>
       {showSplash && <Loader />}
-      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-slate-100 dark:border-dark-border px-10 py-8">
+
+      {isAuthenticating && (
+        <div className="fixed inset-0 z-[100] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0a192f] via-[#020c1b] to-[#01050b] flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center p-8 max-w-md w-full">
+
+            {/* Radar Animation */}
+            <div className="relative w-36 h-36 mb-6">
+              {/* Concentric circles */}
+              <div className="absolute inset-0 border border-emerald-500/20 rounded-full"></div>
+              <div className="absolute inset-4 border border-emerald-500/20 rounded-full"></div>
+              <div className="absolute inset-8 border border-emerald-500/20 rounded-full"></div>
+
+              {/* Radar Sweep */}
+              <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,transparent_0deg,transparent_270deg,rgba(16,185,129,0.3)_360deg)] animate-[spin_2s_linear_infinite]"></div>
+
+              {/* Globe Icon */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Globe className="w-10 h-10 text-emerald-400" strokeWidth={1.5} />
+              </div>
+            </div>
+
+            {/* Text */}
+            <h2 className="text-2xl font-bold text-white tracking-tight mb-1">
+              Security Check
+            </h2>
+            <p className="text-emerald-400 text-[10px] sm:text-xs font-semibold tracking-[0.2em] uppercase mb-8">
+              {scanLogs.length > 0 ? scanLogs[scanLogs.length - 1].replace(/\[OK\]|ERROR:|WARNING:/g, '').trim() : 'VERIFYING IP ADDRESS'}
+            </p>
+
+            {/* Progress Bar Container */}
+            <div className="w-64 bg-[#0a192f]/50 border border-slate-800/80 rounded-lg p-2.5 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center gap-2 text-emerald-500/80 text-[10px] sm:text-xs mb-2">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Authenticating...</span>
+              </div>
+              <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 w-full animate-[pulse_1s_ease-in-out_infinite] origin-left scale-x-75"></div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                abortProcessRef.current = Date.now();
+                setIsAuthenticating(false);
+                setScanLogs([]);
+                setShowSplash(false);
+              }}
+              className="mt-8 text-emerald-500/60 hover:text-emerald-400 text-xs font-semibold tracking-widest uppercase transition-colors flex items-center gap-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Login
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className={`bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-slate-100 dark:border-dark-border px-10 py-8 ${isAuthenticating ? 'hidden' : ''}`}>
 
         {step === 'login' ? (
           <>
@@ -221,6 +323,19 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleVerifyOtp} className="space-y-5">
+              {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 text-center">Confirm Email Address</label>
+                  <input
+                    type="email"
+                    value={verifyEmail}
+                    onChange={(e) => setVerifyEmail(e.target.value)}
+                    className="w-full text-center py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all outline-none"
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 text-center">Enter OTP Code</label>
                 <input
@@ -249,18 +364,34 @@ const Login = () => {
 
               <button
                 type="button"
-                onClick={() => setStep('login')}
-                disabled={loading}
+                onClick={() => {
+                  abortProcessRef.current = Date.now();
+                  setStep('login');
+                  setLoading(false);
+                  setIsAuthenticating(false);
+                  setShowSplash(false);
+                  setEmail('');
+                  setPassword('');
+                  setOtp('');
+                }}
                 className="w-full mt-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                Back to Login
+                Back to Login Area
               </button>
             </form>
           </>
         ) : step === 'forgot-password' ? (
           <>
             <button
-              onClick={() => setStep('login')}
+              onClick={() => {
+                abortProcessRef.current = Date.now();
+                setStep('login');
+                setLoading(false);
+                setIsAuthenticating(false);
+                setShowSplash(false);
+                setEmail('');
+                setPassword('');
+              }}
               className="absolute top-6 left-6 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
             >
               <ArrowLeft size={24} />
@@ -310,7 +441,16 @@ const Login = () => {
         ) : step === 'reset-password-otp' ? (
           <>
             <button
-              onClick={() => setStep('login')}
+              onClick={() => {
+                abortProcessRef.current = Date.now();
+                setStep('login');
+                setLoading(false);
+                setIsAuthenticating(false);
+                setShowSplash(false);
+                setEmail('');
+                setPassword('');
+                setOtp('');
+              }}
               className="absolute top-6 left-6 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
             >
               <ArrowLeft size={24} />

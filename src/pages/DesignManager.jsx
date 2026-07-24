@@ -3,7 +3,7 @@ import { getDesignsApi, createDesignApi, updateDesignApi, deleteDesignApi, getCa
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Layers, Users, Package, Tag, Eye, Search, SlidersHorizontal, Archive, TrendingUp, TrendingDown, MoreHorizontal, AlertTriangle, X, Loader2, Download } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import { TextField, MenuItem, InputAdornment, Tooltip } from '@mui/material';
@@ -13,6 +13,8 @@ import Pagination from '../components/Pagination';
 import imageCompression from 'browser-image-compression';
 import { getColorSync } from 'colorthief';
 import namer from 'color-namer';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const extractDominantColor = (file) => {
   return new Promise((resolve) => {
@@ -81,6 +83,8 @@ const DesignManager = () => {
   const [categoryStats, setCategoryStats] = useState(null);
   const [designStats, setDesignStats] = useState(null);
   const [weaverStats, setWeaverStats] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadOptionsModalOpen, setDownloadOptionsModalOpen] = useState(false);
   const alertedDesigns = useRef(new Set());
 
   useEffect(() => {
@@ -744,6 +748,122 @@ const DesignManager = () => {
     }
   };
 
+  const handleDownloadImagesZip = async (withRate) => {
+    setDownloadOptionsModalOpen(false);
+    if (activeTab !== 'designs') return;
+    if (filteredData.length === 0) {
+      toast.error('No designs to download');
+      return;
+    }
+
+    setIsDownloading(true);
+    const loadingToast = toast.loading('Generating ZIP file...');
+
+    try {
+      const zip = new JSZip();
+      let hasImages = false;
+
+      for (const item of filteredData) {
+        if (!item.image) continue;
+
+        const images = item.image.split(',').map(img => img.trim()).filter(Boolean);
+        let colors = [];
+        if (item.imageColorMap) {
+          try {
+            const parsedColors = JSON.parse(item.imageColorMap);
+            colors = Array.isArray(parsedColors) ? parsedColors : [];
+          } catch (e) { }
+        }
+
+        for (let idx = 0; idx < images.length; idx++) {
+          const imgUrl = images[idx];
+          const fullUrl = getImageUrl(imgUrl);
+          const colorName = colors[idx] ? `_${colors[idx].replace(/[^a-zA-Z0-9]/g, '')}` : (images.length > 1 ? `_${idx + 1}` : '');
+          const rate = item.rate || 0;
+          const gst = item.gstPercent || 0;
+
+          const extMatch = fullUrl.match(/\.([^.?#]+)(\?.*)?$/);
+          const ext = extMatch ? extMatch[1] : 'jpg';
+          const fileName = `${item.code}${colorName}_Rate${rate}_GST${gst}.${ext}`;
+
+          try {
+            const response = await fetch(fullUrl);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const blob = await response.blob();
+
+            if (withRate) {
+              // Load image to canvas to add watermark
+              const img = new Image();
+              img.crossOrigin = "Anonymous";
+              const imgLoadPromise = new Promise((resolve, reject) => {
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(blob);
+              });
+
+              await imgLoadPromise;
+
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+
+              ctx.drawImage(img, 0, 0);
+
+              const text = `Rate: ₹${rate}`;
+
+              const fontSize = Math.max(24, Math.floor(img.width * 0.055));
+              ctx.font = `bold ${fontSize}px sans-serif`;
+
+              const padding = fontSize * 0.8;
+              const textWidth = ctx.measureText(text).width;
+              const rectHeight = fontSize + padding * 1.5;
+              const rectWidth = textWidth + padding * 2;
+
+              const x = (img.width - rectWidth) / 2;
+              const y = img.height - rectHeight - (img.height * 0.05);
+
+              // Draw background pill
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+              ctx.beginPath();
+              ctx.roundRect ? ctx.roundRect(x, y, rectWidth, rectHeight, rectHeight / 2) : ctx.rect(x, y, rectWidth, rectHeight);
+              ctx.fill();
+
+              // Draw text
+              ctx.fillStyle = '#ffffff';
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'center';
+              ctx.fillText(text, x + rectWidth / 2, y + rectHeight / 2);
+
+              const finalBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+
+              zip.file(fileName, finalBlob);
+            } else {
+              zip.file(fileName, blob);
+            }
+
+            hasImages = true;
+          } catch (err) {
+            console.error(`Failed to fetch/process image: ${fullUrl}`, err);
+          }
+        }
+      }
+
+      if (hasImages) {
+        const content = await zip.generateAsync({ type: 'blob' });
+        saveAs(content, `Designs_${new Date().toISOString().split('T')[0]}.zip`);
+        toast.success('ZIP downloaded successfully!', { id: loadingToast });
+      } else {
+        toast.error('No valid images found to download.', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('ZIP generation failed:', error);
+      toast.error('Failed to generate ZIP file.', { id: loadingToast });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-2">
@@ -751,10 +871,22 @@ const DesignManager = () => {
           <h1 className="text-2xl font-semibold flex items-center text-slate-800 dark:text-white"><Package size={22} className="mr-2 text-primary-600" />Design Management</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage categories, designs, and weavers</p>
         </div>
-        <button onClick={() => openModal()} className="btn btn-primary flex items-center shadow-sm">
-          <Plus size={18} className="mr-2" />
-          Add {activeTab === 'designs' ? 'Design' : activeTab === 'categories' ? 'Category' : 'Weaver'}
-        </button>
+        <div className="flex items-center gap-3">
+          {activeTab === 'designs' && (
+            <button
+              onClick={() => setDownloadOptionsModalOpen(true)}
+              disabled={isDownloading}
+              className="btn px-4 py-2.5 rounded-lg text-sm font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 dark:bg-dark-card dark:hover:bg-dark-bg dark:border-dark-border dark:text-slate-300 flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isDownloading ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
+              {isDownloading ? 'Zipping...' : 'Download Images'}
+            </button>
+          )}
+          <button onClick={() => openModal()} className="btn btn-primary flex items-center shadow-sm px-4 py-2.5 rounded-lg text-sm font-medium">
+            <Plus size={18} className="mr-2" />
+            Add {activeTab === 'designs' ? 'Design' : activeTab === 'categories' ? 'Category' : 'Weaver'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-dark-card p-1.5 rounded-xl inline-flex mb-0 shadow-sm border border-slate-100 dark:border-dark-border">
@@ -1063,6 +1195,7 @@ const DesignManager = () => {
                                   />
                                   <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
                                   <input
+                                    disabled
                                     required
                                     type="text"
                                     placeholder="Color"
@@ -1443,6 +1576,33 @@ const DesignManager = () => {
         cancelText="Cancel"
         variant="danger"
       />
+
+      {downloadOptionsModalOpen && (
+        <div className="fixed modal_main inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 dark:border-dark-border">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-dark-bg/20">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center">
+                <Download className="mr-2 text-primary-600" size={20} />
+                Download Options
+              </h2>
+              <button onClick={() => setDownloadOptionsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-dark-bg rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-600 dark:text-slate-300 mb-6 text-center text-sm font-medium">How would you like to download these images?</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => handleDownloadImagesZip(true)} className="w-full py-3 bg-primary-600 hover:bg-primary-500 text-white font-medium rounded-xl shadow-sm transition-colors">
+                  With Rate Overlay
+                </button>
+                <button onClick={() => handleDownloadImagesZip(false)} className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-xl transition-colors">
+                  Without Rate Overlay
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
